@@ -154,8 +154,9 @@ main(int argc, char* argv[])
     // Configure the LTE parameters (pathloss, bandwidth, scheduler)
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper>();
     lteHelper->SetAttribute("PathlossModel", StringValue("ns3::Cost231PropagationLossModel"));
-    lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(50));
-    lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(50));
+    Config::SetDefault("ns3::LteEnbPhy::TxPower", DoubleValue (43));
+	lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(25));
+    lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(25));
     lteHelper->SetSchedulerType("ns3::RrFfMacScheduler");
     lteHelper->SetSchedulerAttribute("HarqEnabled", BooleanValue(true));
     lteHelper->SetHandoverAlgorithmType(handoverAlgorithm);
@@ -196,9 +197,9 @@ main(int argc, char* argv[])
 
     // Install Mobility Model for eNB (Constant Position at (0, 0, 0)
     Ptr<ListPositionAllocator> positionAllocEnbs = CreateObject<ListPositionAllocator>();
-    positionAllocEnbs->Add(Vector(-500, 250, 20));
-    positionAllocEnbs->Add(Vector(500, 250, 20));
-    positionAllocEnbs->Add(Vector(0, -250, 20));
+    positionAllocEnbs->Add(Vector(-400, 230, 30));
+    positionAllocEnbs->Add(Vector(400, 230, 30));
+    positionAllocEnbs->Add(Vector(0, -462, 30));
     MobilityHelper mobilityEnbs;
     mobilityEnbs.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobilityEnbs.SetPositionAllocator(positionAllocEnbs);
@@ -209,7 +210,7 @@ main(int argc, char* argv[])
     positionAllocUes->Add(Vector(-100, 0, 0));
     positionAllocUes->Add(Vector(100, 150, 0));
     positionAllocUes->Add(Vector(0, 250, 0));
-    positionAllocUes->Add(Vector(-600, 600, 0));
+    positionAllocUes->Add(Vector(-500, 500, 0));
     positionAllocUes->Add(Vector(0, -300, 0));
     positionAllocUes->Add(Vector(500, 400, 0));
     MobilityHelper mobilityUes;
@@ -294,7 +295,7 @@ main(int argc, char* argv[])
         streamingServer->SetAttribute(
             "Remote",
             AddressValue(InetSocketAddress(ueIpIface.GetAddress(i), port)));
-        streamingServer->SetAttribute("DataRate", DataRateValue(DataRate("3000000bps")));
+        streamingServer->SetAttribute("DataRate", DataRateValue(DataRate("10Mbps")));
         streamingServer->SetAttribute("PacketSize", UintegerValue(1500));
         streamingServer->SetAttribute("OnTime", PointerValue(onTimeRv));
         streamingServer->SetAttribute("OffTime", PointerValue(offTimeRv));

@@ -43,7 +43,7 @@ if not result.exists():
 		--traffic-trace-file=traffic-trace-config{i}.tr \
 		--position-trace-file=position-trace-config{i}.tr \
 		--handover-trace-file=handover-trace-config{i}.tr \
-		--sim-time=10''', shell=True)
+		--sim-time=50''', shell=True)
 
 files = sorted(glob.glob("./oran-repository-config*.db"))
 
@@ -58,20 +58,25 @@ for f in files:
 
 	data.append(ue_data)
 data = pd.concat(data)
-data_grouped = data.groupby(['simulationtime', 'nodeid'])
-optimal = []
-for name, group in data_grouped:
-	pos = group['mean_loss'].values.argmin()
-	optimal.append(group.iloc[pos])
-optimal = pd.DataFrame(optimal)
 
 con = sqlite3.connect(files[0])
 enb_data = pd.read_sql_query(enb_query, con)
-distances = optimal[['x','y']].apply(calc_distances,
+distances = data[['x','y']].apply(calc_distances,
 									axis='columns',
 									result_type='expand',
 									positions=enb_data[['x','y']])
-optimal = pd.concat([optimal, distances], axis='columns')
+serving_cell_distance = distances.values[
+						np.arange(len(distances)),data['cellid']-1
+						]
+data = pd.concat([data, distances], axis='columns')
+data['cell_dist'] = serving_cell_distance
+
+data_grouped = data.groupby(['simulationtime', 'nodeid'])
+optimal = []
+for name, group in data_grouped:
+	sort = group.sort_values(by=['mean_loss', 'cell_dist'])
+	optimal.append(sort.iloc[0])
+optimal = pd.DataFrame(optimal)
 
 cell_mean = optimal.groupby(['simulationtime', 'cellid'])['loss'].mean()
 cell_mean = cell_mean.unstack()
@@ -80,11 +85,14 @@ cell_mean.columns = [f'cell_mean_{x}' for x in columns]
 cell_mean = cell_mean.reset_index()
 optimal = pd.merge(optimal, cell_mean, how='right', on='simulationtime')
 
+distances = optimal.filter(like='distance', axis='columns')
 cell_mean = optimal.filter(like='cell_mean', axis='columns')
 train_data = pd.concat([distances,
 						cell_mean,
 						optimal['loss'],
-						optimal['cellid'].astype(int)-1],
+						optimal['cellid'].astype(int)-1,
+						optimal['nodeid']],
 						axis='columns')
+train_data = train_data.loc[train_data['nodeid'] <= 3, :'cellid']
 print(train_data)
 train_data.to_csv('training.data', sep=' ', header=False, index=False)
