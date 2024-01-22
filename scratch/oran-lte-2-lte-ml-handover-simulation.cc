@@ -50,7 +50,7 @@
 
 using namespace ns3;
 
-const static float ENB_HEIGHT = 20;
+const static float ENB_HEIGHT = 30;
 
 //Variavel
 uint32_t numUEs = 50;
