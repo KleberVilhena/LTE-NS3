@@ -39,8 +39,10 @@
 #include <ns3/string.h>
 #include <ns3/uinteger.h>
 
+#include <algorithm>
 #include <fstream>
 #include <utility>
+#include <vector>
 
 namespace ns3
 {
@@ -198,8 +200,8 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 
     std::vector<Ptr<OranCommand>> commands;
 
-	//key: (uenodeid,cellid)
-    std::map<std::pair<uint16_t,uint16_t>, float> distanceEnb;
+	//key: uenodeid
+    std::map<uint16_t, std::vector<std::pair<OranLmLte2LteTorchHandover::EnbInfo, float>>> distanceEnb;
 	//key: uenodeid
     std::map<uint16_t, float> loss;
 	//key: cellid
@@ -210,13 +212,20 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 
     for (const auto ueInfo : ueInfos)
     {
+		std::vector<std::pair<OranLmLte2LteTorchHandover::EnbInfo, float>> dists;
         for (const auto enbInfo : enbInfos)
         {
             float d = std::sqrt(std::pow(ueInfo.position.x - enbInfo.position.x, 2) +
                                 std::pow(ueInfo.position.y - enbInfo.position.y, 2));
-			auto key = std::make_pair(ueInfo.nodeId,enbInfo.cellId);
-			distanceEnb[key] = d;
+			auto item = std::make_pair(enbInfo,d);
+			dists.push_back(item);
         }
+		std::stable_sort(dists.begin(),dists.end(), [&]
+					(std::pair<OranLmLte2LteTorchHandover::EnbInfo,float> a,
+					 std::pair<OranLmLte2LteTorchHandover::EnbInfo,float> b)
+					{ return (a.second<b.second); });
+		dists.resize(3);
+		distanceEnb[ueInfo.nodeId] = dists;
         loss[ueInfo.nodeId] = ueInfo.loss;
 		ueCount[ueInfo.cellId]++;
 		meanLossEnb[ueInfo.cellId] += ueInfo.loss;
@@ -227,12 +236,13 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 
     for (const auto ueInfo : ueInfos)
     {
-		std::vector<float> inputv = {distanceEnb[std::make_pair(ueInfo.nodeId,1)],
-									 distanceEnb[std::make_pair(ueInfo.nodeId,2)],
-									 distanceEnb[std::make_pair(ueInfo.nodeId,3)],
-									 meanLossEnb[1],
-									 meanLossEnb[2],
-									 meanLossEnb[3],
+		auto enb_data = distanceEnb[ueInfo.nodeId];
+		std::vector<float> inputv = {enb_data[0].second,
+									 enb_data[1].second,
+									 enb_data[2].second,
+									 meanLossEnb[enb_data[0].first.cellId],
+									 meanLossEnb[enb_data[1].first.cellId],
+									 meanLossEnb[enb_data[2].first.cellId],
 									 loss[ueInfo.nodeId]};
 
 		LogLogicToRepository("ML input tensor: (" + std::to_string(inputv.at(0)) + ", " +
@@ -244,7 +254,7 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 		inputs.push_back(torch::from_blob(inputv.data(), {1, 7}).to(torch::kFloat32));
 		at::Tensor output = torch::softmax(m_model.forward(inputs).toTensor(), 1);
 
-		int cellId = output.argmax(1).item().toInt() + 1;
+		int cellId = enb_data[output.argmax(1).item().toInt()].first.cellId;
 		LogLogicToRepository("ML Chooses cell " + std::to_string(cellId));
 
 		if (cellId == ueInfo.cellId)

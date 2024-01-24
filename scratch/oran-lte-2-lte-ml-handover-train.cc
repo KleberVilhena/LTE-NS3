@@ -207,9 +207,9 @@ main(int argc, char* argv[])
 
     // Install Mobility Model for UE (Constant Positions)
     Ptr<ListPositionAllocator> positionAllocUes = CreateObject<ListPositionAllocator>();
-    positionAllocUes->Add(Vector(-100, 0, 0));
-    positionAllocUes->Add(Vector(100, 150, 0));
-    positionAllocUes->Add(Vector(0, 250, 0));
+    positionAllocUes->Add(Vector(-70, -30, 0));
+    positionAllocUes->Add(Vector(100, 120, 0));
+    positionAllocUes->Add(Vector(-20, 100, 0));
     positionAllocUes->Add(Vector(-500, 500, 0));
     positionAllocUes->Add(Vector(0, -300, 0));
     positionAllocUes->Add(Vector(500, 400, 0));

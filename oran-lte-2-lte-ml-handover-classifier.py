@@ -68,16 +68,19 @@ class MulticlassClassification(nn.Module):
         self.layer_out = nn.Linear(64, num_class) 
         
         self.relu = nn.ReLU()
+        self.leakyrelu = nn.LeakyReLU(0.02)
+        self.norm = nn.BatchNorm1d(num_feature)
         
     # The forward method defines the topology, the connections
     # between the layers and components defined in the __init__
     # method
     def forward(self, x):
+        x = self.norm(x)
         x = self.layer_1(x)
         x = self.relu(x)
         
         x = self.layer_2(x)
-        x = self.relu(x)
+        x = self.leakyrelu(x)
         
         x = self.layer_3(x)
         x = self.relu(x)
@@ -170,16 +173,16 @@ weighted_sampler = WeightedRandomSampler(
 )
 
 # Set training parameters
-EPOCHS = 3
-BATCH_SIZE = 10
-LEARNING_RATE = 0.0007
+EPOCHS = 500
+BATCH_SIZE = 50
+LEARNING_RATE = 0.0005
 NUM_FEATURES = len(X.columns)
 NUM_CLASSES = 3
 
 # Initialize the data loaders for each dataset
 train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, sampler=weighted_sampler)
-val_loader = DataLoader(dataset=val_dataset, batch_size=1)
-test_loader = DataLoader(dataset=test_dataset, batch_size=1)
+val_loader = DataLoader(dataset=val_dataset, batch_size=5)
+test_loader = DataLoader(dataset=test_dataset, batch_size=5)
 
 # Set the context for the model: if hardware acceleration is available, use it
 # Otherwise, use the CPU
@@ -292,7 +295,8 @@ with torch.no_grad():
         # If this is the first input, we can now save the model
         if save_pending:
             traced_script_module = torch.jit.trace(model, X_batch)
-            traced_script_module.save ("saved_trained_classification_pytorch.pt")
+            traced_script_module.save
+            ("saved_trained_classification_pytorch.pt")
             save_pending = False
 
     # Print the testing statistics

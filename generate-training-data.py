@@ -43,7 +43,7 @@ if not result.exists():
 		--traffic-trace-file=traffic-trace-config{i}.tr \
 		--position-trace-file=position-trace-config{i}.tr \
 		--handover-trace-file=handover-trace-config{i}.tr \
-		--sim-time=50''', shell=True)
+		--sim-time=250''', shell=True)
 
 files = sorted(glob.glob("./oran-repository-config*.db"))
 
@@ -84,15 +84,30 @@ columns = cell_mean.columns.astype(int)
 cell_mean.columns = [f'cell_mean_{x}' for x in columns]
 cell_mean = cell_mean.reset_index()
 optimal = pd.merge(optimal, cell_mean, how='right', on='simulationtime')
+print(optimal)
+optimal = optimal[optimal['nodeid'] <= 3].reset_index()
 
-distances = optimal.filter(like='distance', axis='columns')
-cell_mean = optimal.filter(like='cell_mean', axis='columns')
-train_data = pd.concat([distances,
-						cell_mean,
-						optimal['loss'],
-						optimal['cellid'].astype(int)-1,
-						optimal['nodeid']],
-						axis='columns')
-train_data = train_data.loc[train_data['nodeid'] <= 3, :'cellid']
+#reorder enbs based on distance
+sel = optimal.loc[:,'distance_1':]
+sorted_rows = []
+for row in sel.itertuples(index=False):
+	serving_dist = row[3]
+	d = {'distances': row[:3],
+		 'losses': row[4:]}
+	enbs = pd.DataFrame(d)
+	enbs = enbs.sort_values(by='distances')
+	enbs = enbs.reset_index(drop=True)
+	index = enbs[enbs['distances'] == serving_dist].index[0]
+	enbs = enbs.unstack()
+	labels = list(row._fields)
+	del labels[3]
+	enbs.index = labels
+	enbs['cellid'] = index
+	sorted_rows.append(enbs)
+train_data = pd.DataFrame(sorted_rows)
+
+train_data['cellid'] = train_data['cellid'].astype(int)
+train_data.insert(6, 'loss', optimal['loss'])
+
 print(train_data)
 train_data.to_csv('training.data', sep=' ', header=False, index=False)
