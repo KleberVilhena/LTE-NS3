@@ -295,8 +295,7 @@ with torch.no_grad():
         # If this is the first input, we can now save the model
         if save_pending:
             traced_script_module = torch.jit.trace(model, X_batch)
-            traced_script_module.save
-            ("saved_trained_classification_pytorch.pt")
+            traced_script_module.save ("saved_trained_classification_pytorch.pt")
             save_pending = False
 
     # Print the testing statistics
