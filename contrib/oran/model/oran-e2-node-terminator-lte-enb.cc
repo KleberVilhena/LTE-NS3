@@ -91,8 +91,9 @@ OranE2NodeTerminatorLteEnb::ReceiveCommand(Ptr<OranCommand> command)
                 command->GetObject<OranCommandLte2LteHandover>();
 
             Ptr<LteEnbRrc> lteEnbRrc = GetNetDevice()->GetRrc();
-            lteEnbRrc->SendHandoverRequest(handoverCommand->GetTargetRnti(),
-                                           handoverCommand->GetTargetCellId());
+            if (lteEnbRrc->HasUeManager(handoverCommand->GetTargetRnti()))
+                lteEnbRrc->SendHandoverRequest(handoverCommand->GetTargetRnti(),
+                                               handoverCommand->GetTargetCellId());
         }
     }
 }
