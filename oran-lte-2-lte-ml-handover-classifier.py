@@ -67,20 +67,18 @@ class MulticlassClassification(nn.Module):
         self.layer_3 = nn.Linear(128, 64)
         self.layer_out = nn.Linear(64, num_class) 
         
+        self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
-        self.leakyrelu = nn.LeakyReLU(0.02)
-        self.norm = nn.BatchNorm1d(num_feature)
         
     # The forward method defines the topology, the connections
     # between the layers and components defined in the __init__
     # method
     def forward(self, x):
-        x = self.norm(x)
         x = self.layer_1(x)
-        x = self.relu(x)
+        x = self.tanh(x)
         
         x = self.layer_2(x)
-        x = self.leakyrelu(x)
+        x = self.relu(x)
         
         x = self.layer_3(x)
         x = self.relu(x)
@@ -173,9 +171,9 @@ weighted_sampler = WeightedRandomSampler(
 )
 
 # Set training parameters
-EPOCHS = 500
+EPOCHS = 100
 BATCH_SIZE = 50
-LEARNING_RATE = 0.0005
+LEARNING_RATE = 0.0001
 NUM_FEATURES = len(X.columns)
 NUM_CLASSES = 3
 

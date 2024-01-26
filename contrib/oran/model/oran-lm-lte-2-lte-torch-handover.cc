@@ -225,6 +225,8 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 					 std::pair<OranLmLte2LteTorchHandover::EnbInfo,float> b)
 					{ return (a.second<b.second); });
 		dists.resize(3);
+		for(int i = 0; i < 3; ++i)
+			dists[i].second /= dists[2].second;
 		distanceEnb[ueInfo.nodeId] = dists;
         loss[ueInfo.nodeId] = ueInfo.loss;
 		ueCount[ueInfo.cellId]++;

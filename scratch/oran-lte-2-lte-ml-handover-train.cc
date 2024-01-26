@@ -44,6 +44,7 @@ using namespace ns3;
 static std::string s_trafficTraceFile = "traffic-trace.tr";
 static std::string s_positionTraceFile = "position-trace.tr";
 static std::string s_handoverTraceFile = "handover-trace.tr";
+static std::string ns3_dir;
 
 // Function that will save the traces of RX'd packets
 void
@@ -94,6 +95,60 @@ NotifyHandoverEndOkEnb(std::string context, uint64_t imsi, uint16_t cellid, uint
 
 NS_LOG_COMPONENT_DEFINE("OranLte2LteMlHandoverTrain");
 
+std::vector<Vector> load_position_trace() {
+    std::ifstream infile(ns3_dir + "train-initial-positions.tr");
+    std::vector<Vector> pos;
+    double x, y;
+    while (infile >> x >> y) {
+        Vector tmp = {x, y, 0};
+        pos.push_back(tmp);
+    }
+    infile.close();
+    return pos;
+}
+
+bool IsTopLevelSourceDir (std::string path)
+{
+	bool haveVersion = false;
+	bool haveLicense = false;
+
+	//
+	// If there's a file named VERSION and a file named LICENSE in this
+	// directory, we assume it's our top level source directory.
+	//
+
+	std::list<std::string> files = SystemPath::ReadFiles (path);
+	for (std::list<std::string>::const_iterator i = files.begin (); i != files.end (); ++i)
+	{
+		if (*i == "VERSION")
+		{
+			haveVersion = true;
+		}
+		else if (*i == "LICENSE")
+		{
+			haveLicense = true;
+		}
+	}
+
+	return haveVersion && haveLicense;
+}
+
+std::string GetTopLevelSourceDir (void)
+{
+	std::string self = SystemPath::FindSelfDirectory ();
+	std::list<std::string> elements = SystemPath::Split (self);
+	while (!elements.empty ())
+	{
+		std::string path = SystemPath::Join (elements.begin (), elements.end ());
+		if (IsTopLevelSourceDir (path))
+		{
+			return path + "/";
+		}
+		elements.pop_back ();
+	}
+	NS_FATAL_ERROR ("Could not find source directory from self=" << self);
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -102,9 +157,12 @@ main(int argc, char* argv[])
     bool useOnnx = false;
     bool useTorch = false;
     bool useDistance = false;
-    uint32_t startConfig = 1;
+    uint32_t startConfig = 0;
     double lmQueryInterval = 1;
     double txDelay = 0;
+	int numUEs=4;
+	int scenario=0;
+	int runId=0;
     std::string handoverAlgorithm = "ns3::NoOpHandoverAlgorithm";
     Time simTime = Seconds(100);
     std::string dbFileName = "oran-repository.db";
@@ -119,7 +177,9 @@ main(int argc, char* argv[])
     cmd.AddValue("use-distance-lm",
                  "Indicates whether the distance LM should be used or not",
                  useDistance);
+    cmd.AddValue("scenario", "The simulation scenario", scenario);
     cmd.AddValue("start-config", "The starting configuration", startConfig);
+    cmd.AddValue("run-id", "The run id. It changes the first UE start position", runId);
     cmd.AddValue("sim-time", "The duration for which traffic should flow", simTime);
     cmd.AddValue("lm-query-interval", "The LM query interval", lmQueryInterval);
     cmd.AddValue("tx-delay", "The E2 termiantor's transmission delay", txDelay);
@@ -146,6 +206,8 @@ main(int argc, char* argv[])
                         (useOnnx || useTorch || useDistance),
                     "Cannot use non-noop handover algorithm with ML LM or distance LM.");
 
+	ns3_dir = GetTopLevelSourceDir();
+
     // Increase the buffer size to accomodate the application demand
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1000 * 1024));
     // Disabled to prevent the automatic cell reselection when signal quality is bad.
@@ -158,7 +220,7 @@ main(int argc, char* argv[])
 	lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(25));
     lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(25));
     lteHelper->SetSchedulerType("ns3::RrFfMacScheduler");
-    lteHelper->SetSchedulerAttribute("HarqEnabled", BooleanValue(true));
+    lteHelper->SetSchedulerAttribute("HarqEnabled", BooleanValue(false));
     lteHelper->SetHandoverAlgorithmType(handoverAlgorithm);
 
     // Deploy the EPC
@@ -189,11 +251,28 @@ main(int argc, char* argv[])
         ipv4RoutingHelper.GetStaticRouting(remoteHost->GetObject<Ipv4>());
     remoteHostStaticRouting->AddNetworkRouteTo(Ipv4Address("7.0.0.0"), Ipv4Mask("255.0.0.0"), 1);
 
+    if (scenario >= 3)
+    {
+        NS_ABORT_MSG("Scenario " << scenario << " not supported.");
+    }
+
+	switch(scenario) {
+		case 0:
+			numUEs = 4;
+			break;
+		case 1:
+			numUEs = 16;
+			break;
+		case 2:
+			numUEs = 25;
+			break;
+	}
+
     // Create eNB and UE
     NodeContainer ueNodes;
     NodeContainer enbNodes;
     enbNodes.Create(3);
-    ueNodes.Create(6);
+    ueNodes.Create(numUEs);
 
     // Install Mobility Model for eNB (Constant Position at (0, 0, 0)
     Ptr<ListPositionAllocator> positionAllocEnbs = CreateObject<ListPositionAllocator>();
@@ -206,16 +285,32 @@ main(int argc, char* argv[])
     mobilityEnbs.Install(enbNodes);
 
     // Install Mobility Model for UE (Constant Positions)
+	auto pos = load_position_trace();
+    Ptr<ListPositionAllocator> positionUe = CreateObject<ListPositionAllocator>();
+	positionUe->Add(pos[runId]);
+
     Ptr<ListPositionAllocator> positionAllocUes = CreateObject<ListPositionAllocator>();
-    positionAllocUes->Add(Vector(-70, -30, 0));
-    positionAllocUes->Add(Vector(100, 120, 0));
-    positionAllocUes->Add(Vector(-20, 100, 0));
-    positionAllocUes->Add(Vector(-500, 500, 0));
-    positionAllocUes->Add(Vector(0, -300, 0));
-    positionAllocUes->Add(Vector(500, 400, 0));
+	//config 0 + 1
+    positionAllocUes->Add(Vector(-475, 361, 0));
+    positionAllocUes->Add(Vector(-77, -373, 0));
+    positionAllocUes->Add(Vector(461, 213, 0));
+	//config 1
+    positionAllocUes->Add(Vector(542, 284, 0));
+    positionAllocUes->Add(Vector(539, 181, 0));
+    positionAllocUes->Add(Vector(404, 139, 0));
+
+    positionAllocUes->Add(Vector(39, -344, 0));
+    positionAllocUes->Add(Vector(77, -405, 0));
+    positionAllocUes->Add(Vector(-60, -575, 0));
+    positionAllocUes->Add(Vector(84, -649, 0));
+    positionAllocUes->Add(Vector(-178, -524, 0));
+    positionAllocUes->Add(Vector(-56, -453, 0));
+    positionAllocUes->Add(Vector(39, -527, 0));
+    positionAllocUes->Add(Vector(145, -450, 0));
+    positionAllocUes->Add(Vector(109, -549, 0));
     MobilityHelper mobilityUes;
 
-    // Mobility Model for UE 0
+    // Mobility Model for UEs
     Ptr<RandomVariableStream> speedRvs =
         CreateObjectWithAttributes<UniformRandomVariable>("Min",
                                                           DoubleValue(1),
@@ -233,8 +328,19 @@ main(int argc, char* argv[])
                                  PointerValue(speedRvs),
                                  "Pause",
                                  PointerValue(pauseRvs));
-    mobilityUes.SetPositionAllocator(positionAllocUes);
-    mobilityUes.Install(ueNodes);
+    mobilityUes.SetPositionAllocator(positionUe);
+	mobilityUes.Install(ueNodes.Get(0));
+
+	mobilityUes.SetPositionAllocator(positionAllocUes);
+	for(int i = 1; i<4; ++i)
+		mobilityUes.Install(ueNodes.Get(i));
+	if (scenario == 2) {
+		mobilityUes.SetPositionAllocator("ns3::RandomRectanglePositionAllocator",
+						"X", StringValue ("ns3::UniformRandomVariable[Min=-1000.0|Max=1000.0]"),
+						"Y", StringValue ("ns3::UniformRandomVariable[Min=-750.0|Max=750.0]"));
+	}
+	for(int i = 4; i<numUEs; ++i)
+		mobilityUes.Install(ueNodes.Get(i));
 
     // Install LTE Devices to the nodes
     NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice(enbNodes);
@@ -253,17 +359,14 @@ main(int argc, char* argv[])
         ueStaticRouting->SetDefaultRoute(epcHelper->GetUeDefaultGatewayAddress(), 1);
     }
 
-    if (startConfig > 26)
+    if (startConfig >= 3)
     {
         NS_ABORT_MSG("Starting configuration " << startConfig << " not supported.");
     }
 	lteHelper->Attach(ueLteDevs.Get(0), enbLteDevs.Get(startConfig%3));
-	lteHelper->Attach(ueLteDevs.Get(1), enbLteDevs.Get((startConfig/3)%3));
-	lteHelper->Attach(ueLteDevs.Get(2), enbLteDevs.Get((startConfig/9)%3));
 
-	lteHelper->Attach(ueLteDevs.Get(3), enbLteDevs.Get(0));
-	lteHelper->Attach(ueLteDevs.Get(4), enbLteDevs.Get(2));
-	lteHelper->Attach(ueLteDevs.Get(5), enbLteDevs.Get(1));
+	for(int i = 1; i<numUEs; ++i)
+		lteHelper->AttachToClosestEnb(ueLteDevs.Get(i), enbLteDevs);
 
     lteHelper->AddX2Interface(enbNodes);
 
