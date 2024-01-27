@@ -635,7 +635,7 @@ main(int argc, char* argv[])
 
 	std::ofstream qos_vs_time;
 	qos_vs_time.open("qos-vs-time.txt", std::ofstream::out | std::ofstream::trunc);
-	qos_vs_time << "Time,UE,Delay,Jitter,Throughtput,PDR" << std::endl;
+	qos_vs_time << "Time,UE,Delay,Jitter,Throughput,PDR" << std::endl;
 	Simulator::Schedule(management_interval, ThroughputMonitor, &flowHelper, flowMonitor);
 
 	// populate user ip map
