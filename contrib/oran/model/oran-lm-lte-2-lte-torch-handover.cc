@@ -236,7 +236,7 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
     for (const auto ueInfo : ueInfos)
     {
 		auto enb_data = distanceEnb[ueInfo.nodeId];
-		float loss_compensation = ueInfo.loss/ueCount[ueInfo.cellId];
+		double loss_compensation = ueInfo.loss/ueCount[ueInfo.cellId];
 		auto adjustedLossEnb(meanLossEnb);
 		adjustedLossEnb[ueInfo.cellId] -= loss_compensation;
 		std::vector<float> inputv = {enb_data[0].second,
@@ -244,7 +244,7 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 									 adjustedLossEnb[enb_data[0].first.cellId],
 									 adjustedLossEnb[enb_data[1].first.cellId],
 									 adjustedLossEnb[enb_data[2].first.cellId],
-									 ueInfo.loss};
+									 (float) ueInfo.loss};
 
 		LogLogicToRepository("ML input tensor: (" + std::to_string(inputv.at(0)) + ", " +
 							 std::to_string(inputv.at(1)) + ", " + std::to_string(inputv.at(2)) + ", " +
