@@ -124,39 +124,51 @@ data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
 optimal = []
 for name, group in data_grouped:
 	sort = group[group['nodeid'] == 1].sort_values(by=['next-loss', 'cell_dist'])
-	config = sort.iloc[0, sort.columns.get_loc('start-config')]
-	optimal.append(group[group['start-config'] == config])
+	best = sort.iloc[0]
+	sel = group[group['start-config'] != best['start-config']].copy()
+	#keep current cells
+	sel['target_cell'] = sel['cellid']
+	#only change cell for nodeid 1
+	sel.loc[sel['nodeid'] == 1, 'target_cell'] = best['cellid']
+	optimal.append(sel)
 optimal = pd.concat(optimal)
 
+distances = optimal.loc[:, 'distance_1':'distance_3']
+target_cell_distance = distances.values[
+						np.arange(len(distances)),optimal['target_cell']-1
+						]
+optimal['target_cell_dist'] = target_cell_distance
+
 cell_mean = optimal[optimal['nodeid'] > 1].groupby(
-		['scenario', 'run-id', 'simulationtime', 'cellid'])['loss'].mean()
+		['scenario', 'run-id', 'start-config', 'simulationtime', 'cellid'])['loss'].mean()
 cell_mean = cell_mean.unstack()
 columns = cell_mean.columns.astype(int)
 cell_mean.columns = [f'cell_mean_{x}' for x in columns]
 cell_mean = cell_mean.reset_index()
-optimal = pd.merge(optimal, cell_mean, how='right', on=['scenario', 'run-id', 'simulationtime'])
+optimal = pd.merge(optimal, cell_mean, how='right',
+				   on=['scenario', 'run-id', 'start-config', 'simulationtime'])
 optimal = optimal[optimal['nodeid'] == 1].reset_index()
 
 #reorder enbs based on distance
-sel = optimal.loc[:,'distance_1':]
+sel = optimal.loc[:, 'distance_1':]
 sorted_rows = []
 for row in sel.itertuples(index=False):
-	serving_dist = row[3]
+	target_dist = row[5]
 	d = {'distances': row[:3],
-		 'losses': row[4:]}
+		 'losses': row[6:]}
 	enbs = pd.DataFrame(d)
 	enbs = enbs.sort_values(by='distances')
 	enbs = enbs.reset_index(drop=True)
-	index = enbs[enbs['distances'] == serving_dist].index[0]
+	index = enbs[enbs['distances'] == target_dist].index[0]
 	enbs = enbs.unstack()
 	labels = list(row._fields)
-	del labels[3]
+	del labels[3:6]
 	enbs.index = labels
-	enbs['cellid'] = index
+	enbs['target_cell'] = index
 	sorted_rows.append(enbs)
 train_data = pd.DataFrame(sorted_rows)
 
-train_data['cellid'] = train_data['cellid'].astype(int)
+train_data['target_cell'] = train_data['target_cell'].astype(int)
 train_data.insert(6, 'loss', optimal['loss'])
 print(train_data)
 
