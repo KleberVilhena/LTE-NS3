@@ -14,7 +14,6 @@ ns_path = './'
 script = 'oran-lte-2-lte-ml-handover-train'
 campaign_dir = ns_path + 'sem-train'
 results_dir = ns_path + 'results-train'
-nRuns = 1
 
 def getScenarioParameters(directory):
 	parameters = dict()
@@ -71,11 +70,12 @@ param_combinations = {
 		'scenario': list(range(3)),
 		'start-config': list(range(3)),
 		'run-id': list(range(100)),
-		'sim-time': 10
+		'sim-time': 10,
+		'RngRun': 0
 		}
 
 campaign.run_missing_simulations(sem.list_param_combinations(param_combinations),
-                    runs=nRuns, stop_on_errors=False)
+                    stop_on_errors=False)
 
 result_param = {
 		'scenario': list(range(3)),
@@ -83,20 +83,24 @@ result_param = {
 		'run-id': list(range(100))
 		}
 if not Path(results_dir).exists():
-	campaign.save_to_folders(result_param, results_dir, nRuns)
+	campaign.save_to_folders(result_param, results_dir, 1)
 
 files = glob.glob(results_dir + 
 				  "/scenario=*/start-config=*/run-id=*/run=0/oran-repository.db")
-
 data = []
 for f in files:
 	parameters = getScenarioParameters(f)
 	con = sqlite3.connect(f)
 	ue_data = pd.read_sql_query(ue_query, con)
 
-	mean_loss = ue_data.groupby('simulationtime', as_index=False)['loss'].mean()
-	mean_loss = mean_loss.rename(columns={'loss': 'mean_loss'})
-	ue_data = pd.merge(ue_data, mean_loss, how='right', on='simulationtime')
+	time = ue_data[ue_data['nodeid'] == 1]['simulationtime']
+	start = time.iloc[0]
+	end = time.iloc[-1]
+	step = time.iloc[1] - start
+
+	next_loss = ue_data[ue_data['simulationtime'] > start]['loss'].reset_index(drop=True)
+	ue_data = ue_data[ue_data['simulationtime'] < end].reset_index(drop=True)
+	ue_data['next-loss'] = next_loss
 	ue_data['scenario'] = parameters['scenario']
 	ue_data['run-id'] = parameters['run-id']
 	ue_data['start-config'] = parameters['start-config']
@@ -119,18 +123,19 @@ data['cell_dist'] = serving_cell_distance
 data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
 optimal = []
 for name, group in data_grouped:
-	sort = group[group['nodeid'] == 1].sort_values(by=['mean_loss', 'cell_dist'])
+	sort = group[group['nodeid'] == 1].sort_values(by=['next-loss', 'cell_dist'])
 	config = sort.iloc[0, sort.columns.get_loc('start-config')]
 	optimal.append(group[group['start-config'] == config])
 optimal = pd.concat(optimal)
 
-cell_mean = optimal.groupby(['scenario', 'run-id', 'simulationtime', 'cellid'])['loss'].mean()
+cell_mean = optimal[optimal['nodeid'] > 1].groupby(
+		['scenario', 'run-id', 'simulationtime', 'cellid'])['loss'].mean()
 cell_mean = cell_mean.unstack()
 columns = cell_mean.columns.astype(int)
 cell_mean.columns = [f'cell_mean_{x}' for x in columns]
 cell_mean = cell_mean.reset_index()
 optimal = pd.merge(optimal, cell_mean, how='right', on=['scenario', 'run-id', 'simulationtime'])
-#optimal = optimal[optimal['nodeid'] == 1].reset_index()
+optimal = optimal[optimal['nodeid'] == 1].reset_index()
 
 #reorder enbs based on distance
 sel = optimal.loc[:,'distance_1':]
@@ -153,9 +158,10 @@ train_data = pd.DataFrame(sorted_rows)
 
 train_data['cellid'] = train_data['cellid'].astype(int)
 train_data.insert(6, 'loss', optimal['loss'])
-
 print(train_data)
-train_data.iloc[:,:3] = train_data.iloc[:,:3].div(train_data['distance_3'],
+
+train_data.iloc[:,:2] = train_data.iloc[:,:2].div(train_data['distance_3'],
 												  axis='index')
+del train_data['distance_3']
 print(train_data)
 train_data.to_csv('training.data', sep=' ', header=False, index=False)

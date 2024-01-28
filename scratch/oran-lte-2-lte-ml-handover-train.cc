@@ -57,6 +57,12 @@ RxTrace(Ptr<const Packet> p, const Address& from, const Address& to)
               << std::endl;
 }
 
+void
+RXCallBack(Ptr<OranReporterAppLoss> reporter, Ptr<const Packet> p, const Address& from, const Address& to)
+{
+	reporter->AddRx(p, from);
+}
+
 // Function that will save the traces of TX'd packets
 void
 TxTrace(Ptr<const Packet> p, const Address& from, const Address& to)
@@ -147,6 +153,7 @@ std::string GetTopLevelSourceDir (void)
 		elements.pop_back ();
 	}
 	NS_FATAL_ERROR ("Could not find source directory from self=" << self);
+	return "";
 }
 
 int
@@ -375,36 +382,28 @@ main(int argc, char* argv[])
     ApplicationContainer remoteApps;
     ApplicationContainer ueApps;
 
-    Ptr<RandomVariableStream> onTimeRv = CreateObject<UniformRandomVariable>();
-    onTimeRv->SetAttribute("Min", DoubleValue(1.0));
-    onTimeRv->SetAttribute("Max", DoubleValue(5.0));
-    Ptr<RandomVariableStream> offTimeRv = CreateObject<UniformRandomVariable>();
-    offTimeRv->SetAttribute("Min", DoubleValue(1.0));
-    offTimeRv->SetAttribute("Max", DoubleValue(5.0));
-
     for (uint16_t i = 0; i < ueNodes.GetN(); i++)
     {
         uint16_t port = basePort * (i + 1);
+		DataRate dataRate("3Mbps");
+		uint64_t bitRate = dataRate.GetBitRate();
+		uint32_t packetSize = 1400; // bytes
+		double interPacketInterval = static_cast<double>(packetSize * 8) / bitRate;
+		Time udpInterval = Seconds(interPacketInterval);
 
-        PacketSinkHelper dlPacketSinkHelper("ns3::UdpSocketFactory",
-                                            InetSocketAddress(Ipv4Address::GetAny(), port));
-        ueApps.Add(dlPacketSinkHelper.Install(ueNodes.Get(i)));
+		UdpServerHelper server(port);
+        ueApps.Add(server.Install(ueNodes.Get(i)));
         // Enable the tracing of RX packets
         ueApps.Get(i)->TraceConnectWithoutContext("RxWithAddresses", MakeCallback(&RxTrace));
 
-        Ptr<OnOffApplication> streamingServer = CreateObject<OnOffApplication>();
-        remoteApps.Add(streamingServer);
+		UdpClientHelper client(ueIpIface.GetAddress(i), port);
         // Attributes
-        streamingServer->SetAttribute(
-            "Remote",
-            AddressValue(InetSocketAddress(ueIpIface.GetAddress(i), port)));
-        streamingServer->SetAttribute("DataRate", DataRateValue(DataRate("10Mbps")));
-        streamingServer->SetAttribute("PacketSize", UintegerValue(1500));
-        streamingServer->SetAttribute("OnTime", PointerValue(onTimeRv));
-        streamingServer->SetAttribute("OffTime", PointerValue(offTimeRv));
-
-        remoteHost->AddApplication(streamingServer);
-        streamingServer->TraceConnectWithoutContext("TxWithAddresses", MakeCallback(&TxTrace));
+		client.SetAttribute("Interval", TimeValue(udpInterval));
+		client.SetAttribute("PacketSize", UintegerValue(packetSize));
+		client.SetAttribute("MaxPackets", UintegerValue(0)); //unlimited
+        remoteApps.Add(client.Install(remoteHost));
+		// Enable the tracing of TX packets
+        remoteApps.Get(i)->TraceConnectWithoutContext("TxWithAddresses", MakeCallback(&TxTrace));
     }
 
     // Inidcate when to start streaming
@@ -495,8 +494,8 @@ main(int argc, char* argv[])
                 "Tx",
                 MakeCallback(&ns3::OranReporterAppLoss::AddTx, appLossReporter));
             ueApps.Get(idx)->TraceConnectWithoutContext(
-                "Rx",
-                MakeCallback(&ns3::OranReporterAppLoss::AddRx, appLossReporter));
+                "RxWithAddresses",
+                MakeBoundCallback(&RXCallBack, appLossReporter));
 
             lteUeTerminator->SetAttribute("NearRtRic", PointerValue(nearRtRic));
             lteUeTerminator->SetAttribute("RegistrationIntervalRv",

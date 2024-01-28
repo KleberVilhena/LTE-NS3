@@ -345,8 +345,8 @@ main(int argc, char* argv[])
 	Config::SetDefault("ns3::LteEnbPhy::TxPower", DoubleValue(43));
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper>();
     lteHelper->SetAttribute("PathlossModel", StringValue("ns3::Cost231PropagationLossModel"));
-	lteHelper->SetEnbDeviceAttribute ("DlEarfcn", UintegerValue (1300)); //band 3 (1800MHz)
-	lteHelper->SetEnbDeviceAttribute ("UlEarfcn", UintegerValue (1300+18000));
+	lteHelper->SetEnbDeviceAttribute ("DlEarfcn", UintegerValue (100)); //band 1 (2100MHz)
+	lteHelper->SetEnbDeviceAttribute ("UlEarfcn", UintegerValue (100+18000));
     lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(100));
     lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(50));
     lteHelper->SetSchedulerType("ns3::PfFfMacScheduler");

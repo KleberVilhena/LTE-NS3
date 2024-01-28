@@ -67,7 +67,7 @@ class MulticlassClassification(nn.Module):
         self.layer_3 = nn.Linear(128, 64)
         self.layer_out = nn.Linear(64, num_class) 
         
-        self.tanh = nn.Tanh()
+        self.elu = nn.ELU()
         self.relu = nn.ReLU()
         
     # The forward method defines the topology, the connections
@@ -75,13 +75,13 @@ class MulticlassClassification(nn.Module):
     # method
     def forward(self, x):
         x = self.layer_1(x)
-        x = self.tanh(x)
+        x = self.relu(x)
         
         x = self.layer_2(x)
-        x = self.relu(x)
+        x = self.elu(x)
         
         x = self.layer_3(x)
-        x = self.relu(x)
+        x = self.elu(x)
         
         x = self.layer_out(x)
         
@@ -126,13 +126,13 @@ def get_class_distribution(obj):
 # Read the training and evaluation dataset. In this case we are using a single file
 # that will be split in 3 sets
 df = pd.read_csv ("training.data", delim_whitespace=True, header=None)
-# Columns 1 to 7 are inputs
+# Columns 1 to 6 are inputs
 X = df.iloc [:,0:-1]
-# Column 8 is the true class
+# Column 7 is the true class
 Y = df.iloc [:,-1]
 
 # Split the dataset: 20 % of the entries will be used for testing
-X_trainval, X_test, Y_trainval, Y_test = train_test_split (X, Y, test_size = 0.2, stratify = Y, random_state = 10)
+X_trainval, X_test, Y_trainval, Y_test = train_test_split (X, Y, test_size = 0.3, stratify = Y, random_state = 10)
 # Split the other 80 % between training and validation
 X_train, X_val, Y_train, Y_val = train_test_split (X_trainval, Y_trainval, random_state = 20)
 
@@ -171,16 +171,16 @@ weighted_sampler = WeightedRandomSampler(
 )
 
 # Set training parameters
-EPOCHS = 100
-BATCH_SIZE = 50
+EPOCHS = 1000
+BATCH_SIZE = 200
 LEARNING_RATE = 0.0001
 NUM_FEATURES = len(X.columns)
 NUM_CLASSES = 3
 
 # Initialize the data loaders for each dataset
 train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, sampler=weighted_sampler)
-val_loader = DataLoader(dataset=val_dataset, batch_size=5)
-test_loader = DataLoader(dataset=test_dataset, batch_size=5)
+val_loader = DataLoader(dataset=val_dataset, batch_size=100)
+test_loader = DataLoader(dataset=test_dataset, batch_size=100)
 
 # Set the context for the model: if hardware acceleration is available, use it
 # Otherwise, use the CPU

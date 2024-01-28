@@ -202,8 +202,6 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 
 	//key: uenodeid
     std::map<uint16_t, std::vector<std::pair<OranLmLte2LteTorchHandover::EnbInfo, float>>> distanceEnb;
-	//key: uenodeid
-    std::map<uint16_t, float> loss;
 	//key: cellid
     std::map<uint16_t, int> ueCount;
 	//key: cellid
@@ -228,7 +226,6 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 		for(int i = 0; i < 3; ++i)
 			dists[i].second /= dists[2].second;
 		distanceEnb[ueInfo.nodeId] = dists;
-        loss[ueInfo.nodeId] = ueInfo.loss;
 		ueCount[ueInfo.cellId]++;
 		meanLossEnb[ueInfo.cellId] += ueInfo.loss;
     }
@@ -239,25 +236,28 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
     for (const auto ueInfo : ueInfos)
     {
 		auto enb_data = distanceEnb[ueInfo.nodeId];
+		float loss_compensation = ueInfo.loss/ueCount[ueInfo.cellId];
+		auto adjustedLossEnb(meanLossEnb);
+		adjustedLossEnb[ueInfo.cellId] -= loss_compensation;
 		std::vector<float> inputv = {enb_data[0].second,
 									 enb_data[1].second,
-									 enb_data[2].second,
-									 meanLossEnb[enb_data[0].first.cellId],
-									 meanLossEnb[enb_data[1].first.cellId],
-									 meanLossEnb[enb_data[2].first.cellId],
-									 loss[ueInfo.nodeId]};
+									 adjustedLossEnb[enb_data[0].first.cellId],
+									 adjustedLossEnb[enb_data[1].first.cellId],
+									 adjustedLossEnb[enb_data[2].first.cellId],
+									 ueInfo.loss};
 
 		LogLogicToRepository("ML input tensor: (" + std::to_string(inputv.at(0)) + ", " +
 							 std::to_string(inputv.at(1)) + ", " + std::to_string(inputv.at(2)) + ", " +
 							 std::to_string(inputv.at(3)) + ", " + std::to_string(inputv.at(4)) + ", " +
-							 std::to_string(inputv.at(5)) + ", " + std::to_string(inputv.at(6)) + ", " + ")");
+							 std::to_string(inputv.at(5)) + ")");
 
 		std::vector<torch::jit::IValue> inputs;
-		inputs.push_back(torch::from_blob(inputv.data(), {1, 7}).to(torch::kFloat32));
+		inputs.push_back(torch::from_blob(inputv.data(), {1, 6}).to(torch::kFloat32));
 		at::Tensor output = torch::softmax(m_model.forward(inputs).toTensor(), 1);
 
-		int cellId = enb_data[output.argmax(1).item().toInt()].first.cellId;
-		LogLogicToRepository("ML Chooses cell " + std::to_string(cellId));
+		int cell_index = output.argmax(1).item().toInt();
+		int cellId = enb_data[cell_index].first.cellId;
+		LogLogicToRepository("ML Chooses cell " + std::to_string(cellId) + " index " + std::to_string(cell_index));
 
 		if (cellId == ueInfo.cellId)
 			continue;
