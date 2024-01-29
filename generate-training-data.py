@@ -139,8 +139,8 @@ target_cell_distance = distances.values[
 						]
 optimal['target_cell_dist'] = target_cell_distance
 
-cell_mean = optimal[optimal['nodeid'] > 1].groupby(
-		['scenario', 'run-id', 'start-config', 'simulationtime', 'cellid'])['loss'].mean()
+cell_mean = optimal.groupby(['scenario', 'run-id', 'start-config',
+							 'simulationtime', 'cellid'])['loss'].mean()
 cell_mean = cell_mean.unstack()
 columns = cell_mean.columns.astype(int)
 cell_mean.columns = [f'cell_mean_{x}' for x in columns]
