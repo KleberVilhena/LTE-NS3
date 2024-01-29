@@ -114,9 +114,6 @@ int get_user_id_from_ipv4(Ipv4Address ip)
 // usando o FlowMonitor
 void ThroughputMonitor(FlowMonitorHelper *fmhelper, Ptr<FlowMonitor> flowMon)
 {
-  // count lost packets
-  flowMon->CheckForLostPackets();
-
   uint32_t LostPacketsum = 0;
   float PDR, PLR, Delay, Jitter, Throughput;
   auto flowStats = flowMon->GetFlowStats();
@@ -145,11 +142,14 @@ void ThroughputMonitor(FlowMonitorHelper *fmhelper, Ptr<FlowMonitor> flowMon)
 	if(!ue_network_mask.IsMatch(ue_network, fiveTuple.destinationAddress))
 		continue;
 
-    PDR = (double)(100 * stats.second.rxPackets) / (stats.second.txPackets);
-    LostPacketsum = (double)(stats.second.txPackets) - (stats.second.rxPackets);
-    PLR = (double)(LostPacketsum * 100) / stats.second.txPackets;
-    Delay = (stats.second.delaySum.GetSeconds()) / (stats.second.rxPackets);
-	Jitter = (stats.second.jitterSum.GetSeconds()) / (stats.second.rxPackets - 1);
+	int rx_packets = stats.second.rxPackets;
+	int tx_packets = stats.second.txPackets;
+	tx_packets = tx_packets>=rx_packets ? tx_packets:rx_packets;
+    PDR = (double)(100 * rx_packets) / (tx_packets);
+    LostPacketsum = (double)(tx_packets) - (rx_packets);
+    PLR = (double)(LostPacketsum * 100) / tx_packets;
+    Delay = (stats.second.delaySum.GetSeconds()) / (rx_packets);
+	Jitter = (stats.second.jitterSum.GetSeconds()) / (rx_packets - 1);
     Throughput = stats.second.rxBytes * 8.0 /
                  (stats.second.timeLastRxPacket.GetSeconds() -
                   stats.second.timeFirstTxPacket.GetSeconds()) /
@@ -158,10 +158,10 @@ void ThroughputMonitor(FlowMonitorHelper *fmhelper, Ptr<FlowMonitor> flowMon)
     std::cout << "Flow ID     : " << stats.first << " ; "
               << fiveTuple.sourceAddress << " -----> "
               << fiveTuple.destinationAddress << std::endl;
-    std::cout << "Tx Packets = " << stats.second.txPackets << std::endl;
-    std::cout << "Rx Packets = " << stats.second.rxPackets << std::endl;
+    std::cout << "Tx Packets = " << tx_packets << std::endl;
+    std::cout << "Rx Packets = " << rx_packets << std::endl;
     std::cout << "Lost Packets = "
-              << (stats.second.txPackets) - (stats.second.rxPackets)
+              << (tx_packets) - (rx_packets)
               << std::endl;
     std::cout << "Packets Delivery Ratio (PDR) = " << PDR << "%" << std::endl;
     std::cout << "Packets Lost Ratio (PLR) = " << PLR << "%" << std::endl;
@@ -206,6 +206,8 @@ void ThroughputMonitor(FlowMonitorHelper *fmhelper, Ptr<FlowMonitor> flowMon)
 		<< user_throughput[ue] << ","
 		<< user_pdr[ue] << std::endl;
   }
+
+  flowMon->ResetAllStats();
 
   // schedule itself in 1sec
   Simulator::Schedule(management_interval, ThroughputMonitor, fmhelper,
