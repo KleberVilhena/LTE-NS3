@@ -288,6 +288,8 @@ main(int argc, char* argv[])
     bool useDistance = false;
     double lmQueryInterval = 1;
     double txDelay = 0;
+	bool remMode = false; // [0]: REM disabled; [1]: generate REM
+	int32_t remRbId = -1;
     std::string handoverAlgorithm = "ns3::NoOpHandoverAlgorithm";
     Time simTime = Seconds(100);
     std::string dbFileName = "oran-repository.db";
@@ -319,6 +321,8 @@ main(int argc, char* argv[])
                  "Specify the handover trace file to create",
                  s_handoverTraceFile);
 	cmd.AddValue("num-ues", "Number of UEs", numUEs);
+	cmd.AddValue("rem-mode", "Generate radio environment map", remMode);
+	cmd.AddValue("rem-rb-id", "RB id", remRbId);
     cmd.Parse(argc, argv);
 
     NS_ABORT_MSG_IF(useOran == false && (useOnnx || useTorch || useDistance),
@@ -438,11 +442,11 @@ main(int argc, char* argv[])
     ApplicationContainer ueApps;
 
     Ptr<RandomVariableStream> onTimeRv = CreateObject<UniformRandomVariable>();
-    onTimeRv->SetAttribute("Min", DoubleValue(1.0));
-    onTimeRv->SetAttribute("Max", DoubleValue(5.0));
+    onTimeRv->SetAttribute("Min", DoubleValue(0.1));
+    onTimeRv->SetAttribute("Max", DoubleValue(0.5));
     Ptr<RandomVariableStream> offTimeRv = CreateObject<UniformRandomVariable>();
-    offTimeRv->SetAttribute("Min", DoubleValue(1.0));
-    offTimeRv->SetAttribute("Max", DoubleValue(5.0));
+    offTimeRv->SetAttribute("Min", DoubleValue(0.1));
+    offTimeRv->SetAttribute("Max", DoubleValue(0.5));
 
     for (uint16_t i = 0; i < ueNodes.GetN(); i++)
     {
@@ -648,6 +652,31 @@ main(int argc, char* argv[])
 		user_ip[i] = remoteIpAddr;
 	}
 
+		Ptr<RadioEnvironmentMapHelper> remHelper = CreateObject<RadioEnvironmentMapHelper> ();
+	if (remMode){
+		Ptr<SpectrumChannel> dlChannel = lteHelper->GetDownlinkSpectrumChannel ();
+		uint32_t dlChannelId = dlChannel->GetId ();
+		NS_LOG_INFO ("DL ChannelId: " << dlChannelId);
+		remHelper->SetAttribute ("Channel", PointerValue (dlChannel));
+		remHelper->SetAttribute ("XMin", DoubleValue (-600.0));
+		remHelper->SetAttribute ("XMax", DoubleValue (600.0));
+		remHelper->SetAttribute ("XRes", UintegerValue (500));
+		remHelper->SetAttribute ("YMin", DoubleValue (-200.0));
+		remHelper->SetAttribute ("YMax", DoubleValue (1500.0));
+		remHelper->SetAttribute ("YRes", UintegerValue (500));
+		remHelper->SetAttribute ("Z", DoubleValue (1.0));
+		remHelper->SetAttribute ("Bandwidth", UintegerValue (100));
+		remHelper->SetAttribute ("Earfcn", UintegerValue (1300));
+
+		if (remRbId >= 0)
+        {
+          remHelper->SetAttribute ("UseDataChannel", BooleanValue (true));
+          remHelper->SetAttribute ("RbId", IntegerValue (remRbId));
+        }
+
+		remHelper->SetAttribute ("OutputFile", StringValue ("rem-start.out"));
+		Simulator::Schedule (Seconds (10.0),&RadioEnvironmentMapHelper::Install,remHelper);
+	}
 
     // Tell the simulator how long to run
     Simulator::Stop(simTime + Seconds(20));
