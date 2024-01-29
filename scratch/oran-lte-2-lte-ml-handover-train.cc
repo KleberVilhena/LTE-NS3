@@ -330,7 +330,7 @@ main(int argc, char* argv[])
                                                           DoubleValue(6));
     mobilityUes.SetMobilityModel("ns3::RandomDirection2dMobilityModel",
                                  "Bounds",
-                                 RectangleValue(Rectangle(-1010, 1010, -760, 760)),
+                                 RectangleValue(Rectangle(-800, 800, -630, 630)),
                                  "Speed",
                                  PointerValue(speedRvs),
                                  "Pause",
@@ -343,8 +343,8 @@ main(int argc, char* argv[])
 		mobilityUes.Install(ueNodes.Get(i));
 	if (scenario == 2) {
 		mobilityUes.SetPositionAllocator("ns3::RandomRectanglePositionAllocator",
-						"X", StringValue ("ns3::UniformRandomVariable[Min=-1000.0|Max=1000.0]"),
-						"Y", StringValue ("ns3::UniformRandomVariable[Min=-750.0|Max=750.0]"));
+						"X", StringValue ("ns3::UniformRandomVariable[Min=-790.0|Max=790.0]"),
+						"Y", StringValue ("ns3::UniformRandomVariable[Min=-620.0|Max=620.0]"));
 	}
 	for(int i = 4; i<numUEs; ++i)
 		mobilityUes.Install(ueNodes.Get(i));
