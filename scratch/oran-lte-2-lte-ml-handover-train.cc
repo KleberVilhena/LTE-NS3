@@ -216,7 +216,7 @@ main(int argc, char* argv[])
 	ns3_dir = GetTopLevelSourceDir();
 
     // Increase the buffer size to accomodate the application demand
-    Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1000 * 1024));
+    Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(100 * 1024));
     // Disabled to prevent the automatic cell reselection when signal quality is bad.
     Config::SetDefault("ns3::LteUePhy::EnableRlfDetection", BooleanValue(false));
 
