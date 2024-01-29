@@ -219,20 +219,39 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(100 * 1024));
     // Disabled to prevent the automatic cell reselection when signal quality is bad.
     Config::SetDefault("ns3::LteUePhy::EnableRlfDetection", BooleanValue(false));
+	Config::SetDefault("ns3::LteSpectrumPhy::CtrlErrorModelEnabled", BooleanValue(true));
+    Config::SetDefault("ns3::LteSpectrumPhy::DataErrorModelEnabled", BooleanValue(true));
+    Config::SetDefault("ns3::LteHelper::UseIdealRrc", BooleanValue(true));
+    Config::SetDefault("ns3::LteHelper::UsePdschForCqiGeneration", BooleanValue(true));
+
+    // Uplink Power Control
+    Config::SetDefault("ns3::LteUePhy::EnableUplinkPowerControl", BooleanValue(true));
+    Config::SetDefault("ns3::LteUePowerControl::ClosedLoop", BooleanValue(true));
+    Config::SetDefault("ns3::LteUePowerControl::AccumulationEnabled", BooleanValue(false));
 
     // Configure the LTE parameters (pathloss, bandwidth, scheduler)
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper>();
     lteHelper->SetAttribute("PathlossModel", StringValue("ns3::Cost231PropagationLossModel"));
     Config::SetDefault("ns3::LteEnbPhy::TxPower", DoubleValue (43));
-	lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(25));
-    lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(25));
-    lteHelper->SetSchedulerType("ns3::RrFfMacScheduler");
-    lteHelper->SetSchedulerAttribute("HarqEnabled", BooleanValue(false));
+	lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(50));
+    lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(50));
+    lteHelper->SetSchedulerType("ns3::PfFfMacScheduler");
+    lteHelper->SetSchedulerAttribute("HarqEnabled", BooleanValue(true));
     lteHelper->SetHandoverAlgorithmType(handoverAlgorithm);
 
     // Deploy the EPC
     Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
     lteHelper->SetEpcHelper(epcHelper);
+
+	lteHelper->SetFfrAlgorithmType("ns3::LteFrSoftAlgorithm");
+	lteHelper->SetFfrAlgorithmAttribute("AllowCenterUeUseEdgeSubBand", BooleanValue(false));
+	lteHelper->SetFfrAlgorithmAttribute("RsrqThreshold", UintegerValue(25));
+	lteHelper->SetFfrAlgorithmAttribute("CenterPowerOffset",
+										UintegerValue(LteRrcSap::PdschConfigDedicated::dB_6));
+	lteHelper->SetFfrAlgorithmAttribute("EdgePowerOffset",
+										UintegerValue(LteRrcSap::PdschConfigDedicated::dB3));
+	lteHelper->SetFfrAlgorithmAttribute("CenterAreaTpc", UintegerValue(0));
+	lteHelper->SetFfrAlgorithmAttribute("EdgeAreaTpc", UintegerValue(3));
 
     Ptr<Node> pgw = epcHelper->GetPgwNode();
 
@@ -283,9 +302,9 @@ main(int argc, char* argv[])
 
     // Install Mobility Model for eNB (Constant Position at (0, 0, 0)
     Ptr<ListPositionAllocator> positionAllocEnbs = CreateObject<ListPositionAllocator>();
-    positionAllocEnbs->Add(Vector(-400, 230, 30));
-    positionAllocEnbs->Add(Vector(400, 230, 30));
-    positionAllocEnbs->Add(Vector(0, -462, 30));
+    positionAllocEnbs->Add(Vector(-250, 145, 30));
+    positionAllocEnbs->Add(Vector(250, 145, 30));
+    positionAllocEnbs->Add(Vector(0, -288, 30));
     MobilityHelper mobilityEnbs;
     mobilityEnbs.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobilityEnbs.SetPositionAllocator(positionAllocEnbs);
@@ -298,23 +317,23 @@ main(int argc, char* argv[])
 
     Ptr<ListPositionAllocator> positionAllocUes = CreateObject<ListPositionAllocator>();
 	//config 0 + 1
-    positionAllocUes->Add(Vector(-475, 361, 0));
-    positionAllocUes->Add(Vector(-77, -373, 0));
-    positionAllocUes->Add(Vector(461, 213, 0));
+    positionAllocUes->Add(Vector(-231, 116, 0));
+    positionAllocUes->Add(Vector(222, 149, 0));
+    positionAllocUes->Add(Vector(28, -273, 0));
 	//config 1
-    positionAllocUes->Add(Vector(542, 284, 0));
-    positionAllocUes->Add(Vector(539, 181, 0));
-    positionAllocUes->Add(Vector(404, 139, 0));
+    positionAllocUes->Add(Vector(233, 104, 0));
+    positionAllocUes->Add(Vector(284, 129, 0));
+    positionAllocUes->Add(Vector(267, 110, 0));
 
-    positionAllocUes->Add(Vector(39, -344, 0));
-    positionAllocUes->Add(Vector(77, -405, 0));
-    positionAllocUes->Add(Vector(-60, -575, 0));
-    positionAllocUes->Add(Vector(84, -649, 0));
-    positionAllocUes->Add(Vector(-178, -524, 0));
-    positionAllocUes->Add(Vector(-56, -453, 0));
-    positionAllocUes->Add(Vector(39, -527, 0));
-    positionAllocUes->Add(Vector(145, -450, 0));
-    positionAllocUes->Add(Vector(109, -549, 0));
+    positionAllocUes->Add(Vector(-25, -256, 0));
+    positionAllocUes->Add(Vector(-57, -282, 0));
+    positionAllocUes->Add(Vector(-29, -316, 0));
+    positionAllocUes->Add(Vector(40, -311, 0));
+    positionAllocUes->Add(Vector(13, -243, 0));
+    positionAllocUes->Add(Vector(-8, -341, 0));
+    positionAllocUes->Add(Vector(-57, -333, 0));
+    positionAllocUes->Add(Vector(26, -334, 0));
+    positionAllocUes->Add(Vector(0, -316, 0));
     MobilityHelper mobilityUes;
 
     // Mobility Model for UEs
@@ -349,8 +368,13 @@ main(int argc, char* argv[])
 	for(int i = 4; i<numUEs; ++i)
 		mobilityUes.Install(ueNodes.Get(i));
 
-    // Install LTE Devices to the nodes
-    NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice(enbNodes);
+	// Install LTE Devices to the nodes
+    NetDeviceContainer enbLteDevs;
+		for (uint32_t i = 0; i < 3; ++i) {
+		lteHelper->SetFfrAlgorithmAttribute(
+				"FrCellTypeId", UintegerValue(i+1));
+		enbLteDevs.Add(lteHelper->InstallEnbDevice(enbNodes.Get(i)));
+	}
     NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice(ueNodes);
 
     internet.Install(ueNodes);
