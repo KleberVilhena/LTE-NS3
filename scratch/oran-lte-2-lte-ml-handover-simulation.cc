@@ -72,6 +72,7 @@ std::vector<double> user_pdr;
 static std::string s_trafficTraceFile = "traffic-trace.tr";
 static std::string s_positionTraceFile = "position-trace.tr";
 static std::string s_handoverTraceFile = "handover-trace.tr";
+static std::string ns3_dir;
 
 // Function that will save the traces of RX'd packets
 void
@@ -278,6 +279,49 @@ void install_mobility(NodeContainer staticNodes, NodeContainer mcNodes, NodeCont
 	ueHelper.Install (ueNodes);
 }
 
+bool IsTopLevelSourceDir (std::string path)
+{
+	bool haveVersion = false;
+	bool haveLicense = false;
+
+	//
+	// If there's a file named VERSION and a file named LICENSE in this
+	// directory, we assume it's our top level source directory.
+	//
+
+	std::list<std::string> files = SystemPath::ReadFiles (path);
+	for (std::list<std::string>::const_iterator i = files.begin (); i != files.end (); ++i)
+	{
+		if (*i == "VERSION")
+		{
+			haveVersion = true;
+		}
+		else if (*i == "LICENSE")
+		{
+			haveLicense = true;
+		}
+	}
+
+	return haveVersion && haveLicense;
+}
+
+std::string GetTopLevelSourceDir (void)
+{
+	std::string self = SystemPath::FindSelfDirectory ();
+	std::list<std::string> elements = SystemPath::Split (self);
+	while (!elements.empty ())
+	{
+		std::string path = SystemPath::Join (elements.begin (), elements.end ());
+		if (IsTopLevelSourceDir (path))
+		{
+			return path + "/";
+		}
+		elements.pop_back ();
+	}
+	NS_FATAL_ERROR ("Could not find source directory from self=" << self);
+	return "";
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -332,6 +376,8 @@ main(int argc, char* argv[])
     NS_ABORT_MSG_IF(handoverAlgorithm != "ns3::NoOpHandoverAlgorithm" &&
                         (useOnnx || useTorch || useDistance),
                     "Cannot use non-noop handover algorithm with ML LM or distance LM.");
+
+	ns3_dir = GetTopLevelSourceDir();
 
     // Increase the buffer size to accomodate the application demand
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(100 * 1024));
@@ -519,6 +565,11 @@ main(int argc, char* argv[])
             defaultLmTid = TypeId::LookupByName("ns3::OranLmLte2LteDistanceHandover");
         }
 
+		if(useTorch)
+		{
+			auto path = StringValue(ns3_dir + "saved_trained_classification_pytorch.pt");
+			Config::SetDefault("ns3::OranLmLte2LteTorchHandover::TorchModelPath", StringValue(path));
+		}
         ObjectFactory defaultLmFactory;
         defaultLmFactory.SetTypeId(defaultLmTid);
         defaultLm = defaultLmFactory.Create<OranLm>();
