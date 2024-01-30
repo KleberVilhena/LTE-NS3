@@ -171,9 +171,11 @@ train_data = pd.DataFrame(sorted_rows)
 train_data['target_cell'] = train_data['target_cell'].astype(int)
 train_data.insert(6, 'loss', optimal['loss'])
 print(train_data)
+train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
 
 train_data.iloc[:,:2] = train_data.iloc[:,:2].div(train_data['distance_3'],
 												  axis='index')
 del train_data['distance_3']
 print(train_data)
+print(pd.cut(train_data['loss'], bins=20).value_counts(sort=False)/len(train_data))
 train_data.to_csv('training.data', sep=' ', header=False, index=False)
