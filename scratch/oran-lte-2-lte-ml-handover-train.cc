@@ -243,15 +243,7 @@ main(int argc, char* argv[])
     Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
     lteHelper->SetEpcHelper(epcHelper);
 
-	lteHelper->SetFfrAlgorithmType("ns3::LteFrSoftAlgorithm");
-	lteHelper->SetFfrAlgorithmAttribute("AllowCenterUeUseEdgeSubBand", BooleanValue(false));
-	lteHelper->SetFfrAlgorithmAttribute("RsrqThreshold", UintegerValue(25));
-	lteHelper->SetFfrAlgorithmAttribute("CenterPowerOffset",
-										UintegerValue(LteRrcSap::PdschConfigDedicated::dB_6));
-	lteHelper->SetFfrAlgorithmAttribute("EdgePowerOffset",
-										UintegerValue(LteRrcSap::PdschConfigDedicated::dB3));
-	lteHelper->SetFfrAlgorithmAttribute("CenterAreaTpc", UintegerValue(0));
-	lteHelper->SetFfrAlgorithmAttribute("EdgeAreaTpc", UintegerValue(3));
+	lteHelper->SetFfrAlgorithmType("ns3::LteFrHardAlgorithm");
 
     Ptr<Node> pgw = epcHelper->GetPgwNode();
 
