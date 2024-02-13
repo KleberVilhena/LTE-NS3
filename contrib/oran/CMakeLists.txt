@@ -102,10 +102,12 @@ build_lib(
     model/oran-report.cc
     model/oran-report-apploss.cc
     model/oran-report-location.cc
+    model/oran-report-lte-cell-load.cc
     model/oran-report-lte-ue-cell-info.cc
     model/oran-reporter.cc
     model/oran-reporter-apploss.cc
     model/oran-reporter-location.cc
+    model/oran-reporter-lte-cell-load.cc
     model/oran-reporter-lte-ue-cell-info.cc
     model/oran-data-repository.cc
     model/oran-data-repository-sqlite.cc
@@ -139,10 +141,12 @@ build_lib(
     model/oran-report.h
     model/oran-report-apploss.h
     model/oran-report-location.h
+    model/oran-report-lte-cell-load.h
     model/oran-report-lte-ue-cell-info.h
     model/oran-reporter.h
     model/oran-reporter-apploss.h
     model/oran-reporter-location.h
+    model/oran-reporter-lte-cell-load.h
     model/oran-reporter-lte-ue-cell-info.h
     model/oran-data-repository.h
     model/oran-data-repository-sqlite.h
