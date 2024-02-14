@@ -175,6 +175,7 @@ OranLmLte2LteTorchHandover::GetEnbInfos(Ptr<OranDataRepository> data) const
             if (!nodePositions.empty())
             {
                 enbInfo.position = nodePositions.rbegin()->second;
+                enbInfo.cellLoad = data->GetLteCellLoad(enbInfo.nodeId);
                 enbInfos.push_back(enbInfo);
             }
             else
@@ -238,6 +239,9 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 		auto enb_data = distanceEnb[ueInfo.nodeId];
 		std::vector<float> inputv = {enb_data[0].second,
 									 enb_data[1].second,
+									 enb_data[0].first.cellLoad,
+									 enb_data[1].first.cellLoad,
+									 enb_data[2].first.cellLoad,
 									 meanLossEnb[enb_data[0].first.cellId],
 									 meanLossEnb[enb_data[1].first.cellId],
 									 meanLossEnb[enb_data[2].first.cellId],
@@ -246,10 +250,11 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 		LogLogicToRepository("ML input tensor: (" + std::to_string(inputv.at(0)) + ", " +
 							 std::to_string(inputv.at(1)) + ", " + std::to_string(inputv.at(2)) + ", " +
 							 std::to_string(inputv.at(3)) + ", " + std::to_string(inputv.at(4)) + ", " +
-							 std::to_string(inputv.at(5)) + ")");
+							 std::to_string(inputv.at(5)) + ", " + std::to_string(inputv.at(6)) + ", " +
+							 std::to_string(inputv.at(7)) + ", " + std::to_string(inputv.at(8)) + ")");
 
 		std::vector<torch::jit::IValue> inputs;
-		inputs.push_back(torch::from_blob(inputv.data(), {1, 6}).to(torch::kFloat32));
+		inputs.push_back(torch::from_blob(inputv.data(), {1, 9}).to(torch::kFloat32));
 		at::Tensor output = torch::softmax(m_model.forward(inputs).toTensor(), 1);
 
 		int cell_index = output.argmax(1).item().toInt();

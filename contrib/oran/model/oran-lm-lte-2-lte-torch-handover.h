@@ -71,6 +71,7 @@ class OranLmLte2LteTorchHandover : public OranLm
     {
         uint64_t nodeId; //!< The node ID.
         uint16_t cellId; //!< The cell ID.
+        float cellLoad;     //!< The cell load.
         Vector position; //!< The physical position.
     };
 
