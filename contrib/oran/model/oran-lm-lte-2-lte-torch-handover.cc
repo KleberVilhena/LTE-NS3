@@ -199,6 +199,9 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 {
     NS_LOG_FUNCTION(this << data);
 
+	static uint16_t batch_size = 10;
+	static uint16_t next_start = 0;
+
     std::vector<Ptr<OranCommand>> commands;
 
 	//key: uenodeid
@@ -234,8 +237,21 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 	for (const auto enbInfo : enbInfos)
 		meanLossEnb[enbInfo.cellId] /= ueCount[enbInfo.cellId];
 
-    for (const auto ueInfo : ueInfos)
+	uint16_t start_ue = next_start;
+	uint16_t end_ue = start_ue + batch_size;
+	if (end_ue >= numUEs)
+	{
+		end_ue = numUEs;
+		next_start = 0;
+	}
+	else
+	{
+		next_start = end_ue;
+	}
+
+    for (int i = start_ue; i < end_ue; ++i)
     {
+		const auto ueInfo = ueInfos[i];
 		auto enb_data = distanceEnb[ueInfo.nodeId];
 		std::vector<float> inputv = {enb_data[0].second,
 									 enb_data[1].second,
