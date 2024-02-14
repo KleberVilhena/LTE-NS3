@@ -111,7 +111,7 @@ for f in files:
 
 	next_loss = ue_data[ue_data['simulationtime'] > start]['loss'].reset_index(drop=True)
 	ue_data = ue_data[ue_data['simulationtime'] < end].reset_index(drop=True)
-	ue_data['next-loss'] = next_loss
+	ue_data['next_loss'] = next_loss
 
 	enb_load = pd.read_sql_query(enb_load_query, con)
 	enb_load = enb_load.pivot(index='simulationtime',
@@ -146,7 +146,7 @@ data['cell_dist'] = serving_cell_distance
 data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
 optimal = []
 for name, group in data_grouped:
-	sort = group[group['nodeid'] == 1].sort_values(by=['next-loss', 'cell_dist'])
+	sort = group[group['nodeid'] == 1].sort_values(by=['next_loss', 'cell_dist'])
 	best = sort.iloc[0]
 	sel = group[group['start-config'] != best['start-config']].copy()
 	#keep current cells
