@@ -39,6 +39,7 @@
 #include "oran-near-rt-ric.h"
 #include "oran-report-apploss.h"
 #include "oran-report-location.h"
+#include "oran-report-lte-cell-load.h"
 #include "oran-report-lte-ue-cell-info.h"
 #include "oran-report.h"
 
@@ -201,6 +202,14 @@ OranNearRtRicE2Terminator::ReceiveReport(Ptr<OranReport> report)
             m_data->SavePosition(posRpt->GetReporterE2NodeId(),
                                  posRpt->GetLocation(),
                                  posRpt->GetTime());
+        }
+        else if (report->GetInstanceTypeId() ==
+                 TypeId::LookupByName("ns3::OranReportLteCellLoad"))
+        {
+            Ptr<OranReportLteCellLoad> cellLoadRpt = report->GetObject<OranReportLteCellLoad>();
+            m_data->SaveLteCellLoad(cellLoadRpt->GetReporterE2NodeId(),
+                                    cellLoadRpt->GetCellLoad(),
+                                    cellLoadRpt->GetTime());
         }
         else if (report->GetInstanceTypeId() ==
                  TypeId::LookupByName("ns3::OranReportLteUeCellInfo"))
