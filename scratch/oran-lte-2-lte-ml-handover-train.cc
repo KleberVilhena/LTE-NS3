@@ -233,7 +233,7 @@ main(int argc, char* argv[])
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper>();
     lteHelper->SetAttribute("PathlossModel", StringValue("ns3::Cost231PropagationLossModel"));
     Config::SetDefault("ns3::LteEnbPhy::TxPower", DoubleValue (43));
-	lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(50));
+	lteHelper->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(100));
     lteHelper->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(50));
     lteHelper->SetSchedulerType("ns3::PfFfMacScheduler");
     lteHelper->SetSchedulerAttribute("HarqEnabled", BooleanValue(true));
