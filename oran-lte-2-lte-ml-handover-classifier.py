@@ -126,9 +126,9 @@ def get_class_distribution(obj):
 # Read the training and evaluation dataset. In this case we are using a single file
 # that will be split in 3 sets
 df = pd.read_csv ("training.data", delim_whitespace=True, header=None)
-# Columns 1 to 6 are inputs
+# Columns 1 to 9 are inputs
 X = df.iloc [:,0:-1]
-# Column 7 is the true class
+# Column 10 is the true class
 Y = df.iloc [:,-1]
 
 # Split the dataset: 20 % of the entries will be used for testing
