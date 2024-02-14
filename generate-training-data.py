@@ -47,7 +47,9 @@ ue_query = '''SELECT nodeapploss.nodeid,loss,cellid,x,y,nodeapploss.simulationti
 		ON lteuecell.nodeid = nodelocation.nodeid
 		AND lteuecell.simulationtime = nodelocation.simulationtime;'''
 
-enb_query = '''SELECT nodelocation.nodeid,x,y
+enb_load_query = 'SELECT nodeid,load,simulationtime FROM loadcell'
+
+enb_pos_query = '''SELECT nodelocation.nodeid,x,y
 		FROM nodelocation
 		INNER JOIN lteenb
 		ON nodelocation.nodeid = lteenb.nodeid
@@ -110,23 +112,35 @@ for f in files:
 	next_loss = ue_data[ue_data['simulationtime'] > start]['loss'].reset_index(drop=True)
 	ue_data = ue_data[ue_data['simulationtime'] < end].reset_index(drop=True)
 	ue_data['next-loss'] = next_loss
+
+	enb_load = pd.read_sql_query(enb_load_query, con)
+	enb_load = enb_load.pivot(index='simulationtime',
+						  columns='nodeid',
+						  values='load')
+	nCols = len(enb_load.columns)
+	enb_load.columns = [f"cell_load_{x}" for x in range(1,nCols+1)]
+	enb_load = enb_load.reset_index()
+	ue_data = pd.merge(ue_data, enb_load, how='left',
+				   on='simulationtime')
+
 	ue_data['scenario'] = parameters['scenario']
 	ue_data['run-id'] = parameters['run-id']
 	ue_data['start-config'] = parameters['start-config']
 
 	data.append(ue_data)
 data = pd.concat(data)
+data.next_loss = data.next_loss.round(2)
 
-con = sqlite3.connect(files[0])
-enb_data = pd.read_sql_query(enb_query, con)
+enb_pos = pd.read_sql_query(enb_pos_query, con)[['x','y']]
 distances = data[['x','y']].apply(calc_distances,
 									axis='columns',
 									result_type='expand',
-									positions=enb_data[['x','y']])
+									positions=enb_pos)
 serving_cell_distance = distances.values[
 						np.arange(len(distances)),data['cellid']-1
 						]
 data = pd.concat([data, distances], axis='columns')
+data.drop(columns=['x','y'], inplace=True)
 data['cell_dist'] = serving_cell_distance
 
 data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
@@ -149,7 +163,7 @@ target_cell_distance = distances.values[
 optimal['target_cell_dist'] = target_cell_distance
 
 cell_mean = optimal.groupby(['scenario', 'run-id', 'start-config',
-							 'simulationtime', 'cellid'])['loss'].mean()
+							 'simulationtime', 'cellid']).loss.mean()
 cell_mean = cell_mean.unstack()
 columns = cell_mean.columns.astype(int)
 cell_mean.columns = [f'cell_mean_{x}' for x in columns]
@@ -159,26 +173,37 @@ optimal = pd.merge(optimal, cell_mean, how='right',
 optimal = optimal[optimal['nodeid'] == 1].reset_index()
 
 #reorder enbs based on distance
-sel = optimal.loc[:, 'distance_1':]
+sel = []
+sel.append(optimal.loc[:, 'distance_1':'distance_3'])
+sel.append(optimal.loc[:, 'cell_load_1':'cell_load_3'])
+sel.append(optimal.loc[:, 'cell_mean_1':'cell_mean_3'])
+sel = pd.concat(sel, axis='columns')
+sel['target_cell_dist'] = optimal.target_cell_dist
 sorted_rows = []
 for row in sel.itertuples(index=False):
-	target_dist = row[5]
 	d = {'distances': row[:3],
-		 'losses': row[6:]}
+	  'loads': row[3:6],
+	  'losses': row[6:9]}
+	target_dist = row[9]
 	enbs = pd.DataFrame(d)
 	enbs = enbs.sort_values(by='distances')
 	enbs = enbs.reset_index(drop=True)
 	index = enbs[enbs['distances'] == target_dist].index[0]
 	enbs = enbs.unstack()
 	labels = list(row._fields)
-	del labels[3:6]
+	del labels[9]
 	enbs.index = labels
 	enbs['target_cell'] = index
 	sorted_rows.append(enbs)
 train_data = pd.DataFrame(sorted_rows)
 
 train_data['target_cell'] = train_data['target_cell'].astype(int)
-train_data.insert(6, 'loss', optimal['loss'])
+train_data.insert(9, 'loss', optimal['loss'])
+
+#remove lines in which there is no network traffic
+crit = train_data.loc[:, 'cell_load_1':'cell_load_3'].sum(axis='columns') != 0
+train_data = train_data[crit]
+
 print(train_data)
 train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
 
