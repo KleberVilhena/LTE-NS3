@@ -92,6 +92,7 @@ class OranDataRepositorySqlite : public OranDataRepository
     uint64_t RegisterNodeLteEnb(uint64_t id, uint16_t cellId) override;
     uint64_t DeregisterNode(uint64_t e2NodeId) override;
     void SavePosition(uint64_t e2NodeId, Vector pos, Time t) override;
+    void SaveLteCellLoad(uint64_t e2NodeId, double cellLoad, Time t) override;
     void SaveLteUeCellInfo(uint64_t e2NodeId, uint16_t cellId, uint16_t rnti, Time t) override;
     void SaveAppLoss(uint64_t e2NodeId, double appLoss, Time t) override;
 
@@ -99,6 +100,7 @@ class OranDataRepositorySqlite : public OranDataRepository
                                             Time fromTime,
                                             Time toTime,
                                             uint64_t maxEntries = 1) override;
+    double GetLteCellLoad(uint64_t e2NodeId) override;
     std::tuple<bool, uint16_t, uint16_t> GetLteUeCellInfo(uint64_t e2NodeId) override;
     std::vector<uint64_t> GetLteUeE2NodeIds(void) override;
     uint64_t GetLteUeE2NodeIdFromCellInfo(uint16_t cellId, uint16_t rnti) override;
@@ -177,7 +179,8 @@ class OranDataRepositorySqlite : public OranDataRepository
         TABLE_NODE_LOCATION,      //!< Table with Node Locations
         TABLE_NODE_REGISTRATION,  //!< Table with Node Registrations
         TABLE_TERMINATOR_COMMAND, //!< Table with logs of E2 Terminator Commands
-        TABLE_APPLOSS_COMMAND     //!< Table with logs of application loss Commands
+        TABLE_APPLOSS_COMMAND,     //!< Table with logs of application loss Commands
+        TABLE_LTE_CELL_LOAD_COMMAND     //!< Table with logs of cell load Commands
     };
 
     /**

@@ -160,6 +160,7 @@ class OranDataRepository : public Object
      * \param t The time at which this position was reported for the node.
      */
     virtual void SavePosition(uint64_t e2NodeId, Vector pos, Time t) = 0;
+    virtual void SaveLteCellLoad(uint64_t e2NodeId, double cellLoad, Time t) = 0;
     /**
      * Store the UE's connected cell information at the given time.
      *
@@ -193,6 +194,7 @@ class OranDataRepository : public Object
                                                     Time fromTime,
                                                     Time toTime,
                                                     uint64_t maxEntries = 1) = 0;
+    virtual double GetLteCellLoad(uint64_t e2NodeId) = 0;
     /**
      * Gets the the cell information for a UE.
      *
