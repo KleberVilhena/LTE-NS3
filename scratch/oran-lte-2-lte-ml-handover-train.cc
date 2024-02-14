@@ -534,10 +534,19 @@ main(int argc, char* argv[])
         for (uint32_t idx = 0; idx < enbNodes.GetN(); idx++)
         {
             Ptr<OranReporterLocation> locationReporter = CreateObject<OranReporterLocation>();
+			Ptr<OranReporterLteCellLoad> lteCellLoadReporter =
+                CreateObject<OranReporterLteCellLoad>();
             Ptr<OranE2NodeTerminatorLteEnb> lteEnbTerminator =
                 CreateObject<OranE2NodeTerminatorLteEnb>();
 
             locationReporter->SetAttribute("Terminator", PointerValue(lteEnbTerminator));
+
+			lteCellLoadReporter->SetAttribute("Terminator", PointerValue(lteEnbTerminator));
+			auto dev = enbLteDevs.Get(idx)->GetObject<LteEnbNetDevice>();
+			auto mac = dev->GetMac();
+			mac->TraceConnectWithoutContext(
+					"DlScheduling",
+					MakeCallback(&ns3::OranReporterLteCellLoad::DlScheduled, lteCellLoadReporter));
 
             lteEnbTerminator->SetAttribute("NearRtRic", PointerValue(nearRtRic));
             lteEnbTerminator->SetAttribute("RegistrationIntervalRv",
@@ -546,6 +555,7 @@ main(int argc, char* argv[])
                                            StringValue("ns3::ConstantRandomVariable[Constant=1]"));
 
             lteEnbTerminator->AddReporter(locationReporter);
+			lteEnbTerminator->AddReporter(lteCellLoadReporter);
             lteEnbTerminator->Attach(enbNodes.Get(idx));
             lteEnbTerminator->SetAttribute("TransmissionDelayRv",
                                            StringValue("ns3::ConstantRandomVariable[Constant=" +
