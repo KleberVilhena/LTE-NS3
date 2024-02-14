@@ -12,7 +12,8 @@ from pathlib import Path
 
 ns_path = './'
 script = 'oran-lte-2-lte-ml-handover-train'
-campaign_dir = ns_path + 'sem-train'
+campaign_dir = ns_path + 'zram/sem-train'
+persist_campaign_dir = ns_path + 'sem-train'
 results_dir = ns_path + 'results-train'
 
 def getScenarioParameters(directory):
@@ -87,6 +88,11 @@ result_param = {
 		}
 if not Path(results_dir).exists():
 	campaign.save_to_folders(result_param, results_dir, 1)
+
+print("saving campaign")
+if Path(persist_campaign_dir).exists():
+	shutil.rmtree(persist_campaign_dir)
+shutil.copytree(campaign_dir, persist_campaign_dir)
 
 files = glob.glob(results_dir + 
 				  "/scenario=*/start-config=*/run-id=*/run=0/oran-repository.db")

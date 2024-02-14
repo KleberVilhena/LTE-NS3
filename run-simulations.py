@@ -3,10 +3,12 @@
 
 import sem
 import argparse
+import shutil
 
 ns_path = './'
 script = 'oran-lte-2-lte-ml-handover-simulation'
-campaign_dir = ns_path + 'sem'
+campaign_dir = ns_path + 'zram/sem'
+persist_campaign_dir = ns_path + 'sem'
 results_dir = ns_path + 'results'
 nRuns = 32
 
@@ -53,3 +55,8 @@ result_param['handover-algorithm'] = ['ns3::NoOpHandoverAlgorithm']
 result_param['use-torch-lm'] = [True]
 print("exporting results")
 campaign.save_to_folders(result_param, results_dir + '/com ia', nRuns)
+
+print("saving campaign")
+if Path(persist_campaign_dir).exists():
+	shutil.rmtree(persist_campaign_dir)
+shutil.copytree(campaign_dir, persist_campaign_dir)
