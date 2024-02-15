@@ -29,13 +29,18 @@ def getScenarioParameters(directory):
 	parameters["path"] = directory
 	return parameters
 
-def calc_distances(point, positions):
-	#numpy.linalg.norm(a - b) is equivalent to the euclidean distance
-	#between the vectors a and b
-	sub = point - positions
-	distances = sub.apply(np.linalg.norm, axis=1)
-	ncols = len(distances)
-	distances.index = [f'distance_{x}' for x in range(1,ncols+1)]
+def calc_distances(enbs_pos, ues_pos):
+	cols = []
+	for pos in enbs_pos.itertuples(index=False):
+		#numpy.linalg.norm(a - b) is equivalent to the euclidean distance
+		#between the vectors a and b
+		sub = pos - ues_pos
+		cols.append(sub.apply(np.linalg.norm, axis=1))
+	ncols = len(cols)
+	distances = {}
+	for x in range(1,ncols+1):
+		distances[f'distance_{x}'] = cols[x-1]
+	distances = pd.DataFrame(distances)
 	return distances
 
 ue_query = '''SELECT nodeapploss.nodeid,loss,cellid,x,y,nodeapploss.simulationtime
@@ -132,10 +137,7 @@ data = pd.concat(data)
 data.next_loss = data.next_loss.round(2)
 
 enb_pos = pd.read_sql_query(enb_pos_query, con)[['x','y']]
-distances = data[['x','y']].apply(calc_distances,
-									axis='columns',
-									result_type='expand',
-									positions=enb_pos)
+distances = calc_distances(enb_pos, data[['x','y']])
 serving_cell_distance = distances.values[
 						np.arange(len(distances)),data['cellid']-1
 						]
