@@ -148,12 +148,11 @@ optimal = []
 for name, group in data_grouped:
 	sort = group[group['nodeid'] == 1].sort_values(by=['next_loss', 'cell_dist'])
 	best = sort.iloc[0]
-	sel = group[group['start-config'] != best['start-config']].copy()
 	#keep current cells
-	sel['target_cell'] = sel['cellid']
+	sort['target_cell'] = sort['cellid']
 	#only change cell for nodeid 1
-	sel.loc[sel['nodeid'] == 1, 'target_cell'] = best['cellid']
-	optimal.append(sel)
+	sort.loc[sort['nodeid'] == 1, 'target_cell'] = best['cellid']
+	optimal.append(sort)
 optimal = pd.concat(optimal)
 
 distances = optimal.loc[:, 'distance_1':'distance_3']
@@ -204,12 +203,14 @@ train_data.insert(9, 'loss', optimal['loss'])
 crit = train_data.loc[:, 'cell_load_1':'cell_load_3'].sum(axis='columns') != 0
 train_data = train_data[crit]
 
+train_data = train_data.fillna(0)
+
 print(train_data)
 train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
 
-train_data.iloc[:,:2] = train_data.iloc[:,:2].div(train_data['distance_3'],
+train_data.iloc[:,:2] = train_data.iloc[:,:2].div(train_data.distance_3,
 												  axis='index')
 del train_data['distance_3']
 print(train_data)
-print(pd.cut(train_data['loss'], bins=20).value_counts(sort=False)/len(train_data))
+print(pd.cut(train_data.loss, bins=20).value_counts(sort=False)/len(train_data))
 train_data.to_csv('training.data', sep=' ', header=False, index=False)
