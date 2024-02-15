@@ -54,3 +54,11 @@ vcpkg/
 
 # Ignore local cache used by e.g. clangd
 .cache/
+
+sem-train/
+
+results-train/
+
+sem/
+
+results/
