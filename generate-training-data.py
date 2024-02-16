@@ -148,13 +148,13 @@ data['cell_dist'] = serving_cell_distance
 data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
 optimal = []
 for name, group in data_grouped:
-	sort = group[group['nodeid'] == 1].sort_values(by=['next_loss', 'cell_dist'])
+	sort = group[group.nodeid == 1].sort_values(by=['next_loss', 'cell_dist'])
 	best = sort.iloc[0]
 	#keep current cells
-	sort['target_cell'] = sort['cellid']
+	group['target_cell'] = group.cellid
 	#only change cell for nodeid 1
-	sort.loc[sort['nodeid'] == 1, 'target_cell'] = best['cellid']
-	optimal.append(sort)
+	group.loc[group.nodeid == 1, 'target_cell'] = best.cellid
+	optimal.append(group)
 optimal = pd.concat(optimal)
 
 distances = optimal.loc[:, 'distance_1':'distance_3']
@@ -204,8 +204,6 @@ train_data.insert(9, 'loss', optimal['loss'])
 #remove lines in which there is no network traffic
 crit = train_data.loc[:, 'cell_load_1':'cell_load_3'].sum(axis='columns') != 0
 train_data = train_data[crit]
-
-train_data = train_data.fillna(0)
 
 print(train_data)
 train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
