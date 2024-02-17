@@ -109,14 +109,18 @@ for f in files:
 	con = sqlite3.connect(f)
 	ue_data = pd.read_sql_query(ue_query, con)
 
-	time = ue_data[ue_data['nodeid'] == 1]['simulationtime']
+	time = ue_data[ue_data.nodeid == 1].simulationtime
 	start = time.iloc[0]
 	end = time.iloc[-1]
 	step = time.iloc[1] - start
 
-	next_loss = ue_data[ue_data['simulationtime'] > start]['loss'].reset_index(drop=True)
-	ue_data = ue_data[ue_data['simulationtime'] < end].reset_index(drop=True)
+	next_loss = ue_data[ue_data.simulationtime > start].loss.reset_index(drop=True)
+	ue_data = ue_data[ue_data.simulationtime < end].reset_index(drop=True)
 	ue_data['next_loss'] = next_loss
+	next_mean_loss = ue_data.groupby('simulationtime').next_loss.mean()
+	next_mean_loss.name = 'next_mean_loss'
+	ue_data = pd.merge(ue_data, next_mean_loss, how='left',
+					on='simulationtime')
 
 	enb_load = pd.read_sql_query(enb_load_query, con)
 	enb_load = enb_load.pivot(index='simulationtime',
@@ -126,7 +130,7 @@ for f in files:
 	enb_load.columns = [f"cell_load_{x}" for x in range(1,nCols+1)]
 	enb_load = enb_load.reset_index()
 	ue_data = pd.merge(ue_data, enb_load, how='left',
-				   on='simulationtime')
+					on='simulationtime')
 
 	ue_data['scenario'] = parameters['scenario']
 	ue_data['run-id'] = parameters['run-id']
@@ -145,15 +149,20 @@ data = pd.concat([data, distances], axis='columns')
 data.drop(columns=['x','y'], inplace=True)
 data['cell_dist'] = serving_cell_distance
 
+#keep current cells
+data['target_cell'] = data.cellid
 data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
 optimal = []
 for name, group in data_grouped:
-	sort = group[group.nodeid == 1].sort_values(by=['next_loss', 'cell_dist'])
-	best = sort.iloc[0]
-	#keep current cells
-	group['target_cell'] = group.cellid
+	sort = group[group.nodeid == 1].sort_values(by=['next_mean_loss', 'cell_dist'])
 	#only change cell for nodeid 1
-	group.loc[group.nodeid == 1, 'target_cell'] = best.cellid
+	node_mask = (group.nodeid == 1)
+	if sort.next_mean_loss.iloc[1] != sort.next_mean_loss.iloc[0]:
+		config_mask = (group['start-config'] == sort['start-config'].iloc[1])
+		group.loc[node_mask & config_mask, 'target_cell'] = sort.iloc[0].cellid
+	if sort.next_mean_loss.iloc[2] != sort.next_mean_loss.iloc[1]:
+		config_mask = (group['start-config'] == sort['start-config'].iloc[2])
+		group.loc[node_mask & config_mask, 'target_cell'] = sort.iloc[1].cellid
 	optimal.append(group)
 optimal = pd.concat(optimal)
 
