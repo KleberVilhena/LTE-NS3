@@ -8,6 +8,7 @@ import glob
 import sem
 import argparse
 import shutil
+import time as tm
 from pathlib import Path
 
 ns_path = './'
@@ -101,6 +102,7 @@ if Path(persist_campaign_dir).exists():
 	shutil.rmtree(persist_campaign_dir)
 shutil.copytree(campaign_dir, persist_campaign_dir)
 
+time_start = tm.perf_counter()
 files = glob.glob(results_dir + 
 				  "/scenario=*/start-config=*/run-id=*/run=0/oran-repository.db")
 data = []
@@ -138,8 +140,13 @@ for f in files:
 
 	data.append(ue_data)
 data = pd.concat(data)
+time_end = tm.perf_counter()
+time_diff = time_end - time_start
+print(f'Data loading: {time_diff}')
+
 data.next_loss = data.next_loss.round(2)
 
+time_start = tm.perf_counter()
 enb_pos = pd.read_sql_query(enb_pos_query, con)[['x','y']]
 distances = calc_distances(enb_pos, data[['x','y']])
 serving_cell_distance = distances.values[
@@ -148,8 +155,12 @@ serving_cell_distance = distances.values[
 data = pd.concat([data, distances], axis='columns')
 data.drop(columns=['x','y'], inplace=True)
 data['cell_dist'] = serving_cell_distance
+time_end = tm.perf_counter()
+time_diff = time_end - time_start
+print(f'Enb distances calc: {time_diff}')
 
 #keep current cells
+time_start = tm.perf_counter()
 data['target_cell'] = data.cellid
 data_grouped = data.groupby(['scenario', 'run-id', 'simulationtime'])
 optimal = []
@@ -165,6 +176,9 @@ for name, group in data_grouped:
 		group.loc[node_mask & config_mask, 'target_cell'] = sort.iloc[1].cellid
 	optimal.append(group)
 optimal = pd.concat(optimal)
+time_end = tm.perf_counter()
+time_diff = time_end - time_start
+print(f'Optimal cell selection: {time_diff}')
 
 distances = optimal.loc[:, 'distance_1':'distance_3']
 target_cell_distance = distances.values[
@@ -172,6 +186,7 @@ target_cell_distance = distances.values[
 						]
 optimal['target_cell_dist'] = target_cell_distance
 
+time_start = tm.perf_counter()
 cell_mean = optimal.groupby(['scenario', 'run-id', 'start-config',
 							 'simulationtime', 'cellid']).loss.mean()
 cell_mean = cell_mean.unstack()
@@ -181,8 +196,12 @@ cell_mean = cell_mean.reset_index()
 optimal = pd.merge(optimal, cell_mean, how='right',
 				   on=['scenario', 'run-id', 'start-config', 'simulationtime'])
 optimal = optimal[optimal['nodeid'] == 1].reset_index()
+time_end = tm.perf_counter()
+time_diff = time_end - time_start
+print(f'Cell mean loss calc: {time_diff}')
 
 #reorder enbs based on distance
+time_start = tm.perf_counter()
 sel = []
 sel.append(optimal.loc[:, 'distance_1':'distance_3'])
 sel.append(optimal.loc[:, 'cell_load_1':'cell_load_3'])
@@ -206,6 +225,9 @@ for row in sel.itertuples(index=False):
 	enbs['target_cell'] = index
 	sorted_rows.append(enbs)
 train_data = pd.DataFrame(sorted_rows)
+time_end = tm.perf_counter()
+time_diff = time_end - time_start
+print(f'Cell reordering: {time_diff}')
 
 train_data['target_cell'] = train_data['target_cell'].astype(int)
 train_data.insert(9, 'loss', optimal['loss'])
