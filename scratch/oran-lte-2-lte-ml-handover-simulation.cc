@@ -305,7 +305,7 @@ bool IsTopLevelSourceDir (std::string path)
 	return haveVersion && haveLicense;
 }
 
-std::string GetTopLevelSourceDir (void)
+std::string GetTopLevelSourceDir ()
 {
 	std::string self = SystemPath::FindSelfDirectory ();
 	std::list<std::string> elements = SystemPath::Split (self);
