@@ -171,16 +171,16 @@ weighted_sampler = WeightedRandomSampler(
 )
 
 # Set training parameters
-EPOCHS = 1000
-BATCH_SIZE = 200
+EPOCHS = 100
+BATCH_SIZE = 100
 LEARNING_RATE = 0.0001
 NUM_FEATURES = len(X.columns)
 NUM_CLASSES = 3
 
 # Initialize the data loaders for each dataset
 train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, sampler=weighted_sampler)
-val_loader = DataLoader(dataset=val_dataset, batch_size=100)
-test_loader = DataLoader(dataset=test_dataset, batch_size=100)
+val_loader = DataLoader(dataset=val_dataset, batch_size=10)
+test_loader = DataLoader(dataset=test_dataset, batch_size=10)
 
 # Set the context for the model: if hardware acceleration is available, use it
 # Otherwise, use the CPU

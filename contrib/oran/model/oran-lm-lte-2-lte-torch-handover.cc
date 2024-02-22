@@ -219,7 +219,7 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
         {
             float d = std::sqrt(std::pow(ueInfo.position.x - enbInfo.position.x, 2) +
                                 std::pow(ueInfo.position.y - enbInfo.position.y, 2));
-			auto item = std::make_pair(enbInfo,d);
+			auto item = std::make_pair(enbInfo,d/1000);
 			dists.push_back(item);
         }
 		std::stable_sort(dists.begin(),dists.end(), [&]
@@ -227,8 +227,6 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 					 std::pair<OranLmLte2LteTorchHandover::EnbInfo,float> b)
 					{ return (a.second<b.second); });
 		dists.resize(3);
-		for(int i = 0; i < 3; ++i)
-			dists[i].second /= dists[2].second;
 		distanceEnb[ueInfo.nodeId] = dists;
 		ueCount[ueInfo.cellId]++;
 		meanLossEnb[ueInfo.cellId] += ueInfo.loss;
@@ -253,15 +251,23 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
     {
 		const auto ueInfo = ueInfos[i];
 		auto enb_data = distanceEnb[ueInfo.nodeId];
+		double mean_loss = meanLossEnb[enb_data[0].first.cellId];
+		mean_loss += meanLossEnb[enb_data[1].first.cellId];
+		mean_loss += meanLossEnb[enb_data[2].first.cellId];
+		mean_loss /= 3;
+		double relative_loss = ueInfo.loss - mean_loss;
+		if (relative_loss <= 0)
+			continue;
+
 		std::vector<float> inputv = {enb_data[0].second,
 									 enb_data[1].second,
+									 enb_data[2].second,
 									 enb_data[0].first.cellLoad,
 									 enb_data[1].first.cellLoad,
 									 enb_data[2].first.cellLoad,
 									 meanLossEnb[enb_data[0].first.cellId],
 									 meanLossEnb[enb_data[1].first.cellId],
-									 meanLossEnb[enb_data[2].first.cellId],
-									 (float) ueInfo.loss};
+									 meanLossEnb[enb_data[2].first.cellId]};
 
 		LogLogicToRepository("ML input tensor: (" + std::to_string(inputv.at(0)) + ", " +
 							 std::to_string(inputv.at(1)) + ", " + std::to_string(inputv.at(2)) + ", " +
@@ -270,7 +276,7 @@ OranLmLte2LteTorchHandover::GetHandoverCommands(
 							 std::to_string(inputv.at(7)) + ", " + std::to_string(inputv.at(8)) + ")");
 
 		std::vector<torch::jit::IValue> inputs;
-		inputs.push_back(torch::from_blob(inputv.data(), {1, 9}).to(torch::kFloat32));
+		inputs.emplace_back(torch::from_blob(inputv.data(), {1, 9}).to(torch::kFloat32));
 		at::Tensor output = torch::softmax(m_model.forward(inputs).toTensor(), 1);
 
 		int cell_index = output.argmax(1).item().toInt();

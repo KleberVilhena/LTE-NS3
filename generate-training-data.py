@@ -116,13 +116,15 @@ for f in files:
 	end = time.iloc[-1]
 	step = time.iloc[1] - start
 
+	mean_loss = ue_data.groupby('simulationtime').loss.mean()
+	mean_loss.name = 'mean_loss'
+	ue_data = pd.merge(ue_data, mean_loss, how='left',
+					on='simulationtime')
 	next_loss = ue_data[ue_data.simulationtime > start].loss.reset_index(drop=True)
+	next_mean_loss = ue_data[ue_data.simulationtime > start].mean_loss.reset_index(drop=True)
 	ue_data = ue_data[ue_data.simulationtime < end].reset_index(drop=True)
 	ue_data['next_loss'] = next_loss
-	next_mean_loss = ue_data.groupby('simulationtime').next_loss.mean()
-	next_mean_loss.name = 'next_mean_loss'
-	ue_data = pd.merge(ue_data, next_mean_loss, how='left',
-					on='simulationtime')
+	ue_data['next_mean_loss'] = next_mean_loss
 
 	enb_load = pd.read_sql_query(enb_load_query, con)
 	enb_load = enb_load.pivot(index='simulationtime',
@@ -167,13 +169,7 @@ optimal = []
 for name, group in data_grouped:
 	sort = group[group.nodeid == 1].sort_values(by=['next_mean_loss', 'cell_dist'])
 	#only change cell for nodeid 1
-	node_mask = (group.nodeid == 1)
-	if sort.next_mean_loss.iloc[1] != sort.next_mean_loss.iloc[0]:
-		config_mask = (group['start-config'] == sort['start-config'].iloc[1])
-		group.loc[node_mask & config_mask, 'target_cell'] = sort.iloc[0].cellid
-	if sort.next_mean_loss.iloc[2] != sort.next_mean_loss.iloc[1]:
-		config_mask = (group['start-config'] == sort['start-config'].iloc[2])
-		group.loc[node_mask & config_mask, 'target_cell'] = sort.iloc[1].cellid
+	group.loc[group.nodeid == 1, 'target_cell'] = sort.iloc[0].cellid
 	optimal.append(group)
 optimal = pd.concat(optimal)
 time_end = tm.perf_counter()
@@ -229,8 +225,7 @@ time_end = tm.perf_counter()
 time_diff = time_end - time_start
 print(f'Cell reordering: {time_diff}')
 
-train_data['target_cell'] = train_data['target_cell'].astype(int)
-train_data.insert(9, 'loss', optimal['loss'])
+train_data.target_cell = train_data.target_cell.astype(int)
 
 #remove lines in which there is no network traffic
 crit = train_data.loc[:, 'cell_load_1':'cell_load_3'].sum(axis='columns') != 0
@@ -239,9 +234,7 @@ train_data = train_data[crit]
 print(train_data)
 train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
 
-train_data.iloc[:,:2] = train_data.iloc[:,:2].div(train_data.distance_3,
-												  axis='index')
-del train_data['distance_3']
+train_data.iloc[:,:3] = train_data.iloc[:,:3] / 1000
 print(train_data)
-print(pd.cut(train_data.loss, bins=20).value_counts(sort=False)/len(train_data))
+print(pd.cut(optimal.loss, bins=20).value_counts(sort=False)/len(train_data))
 train_data.to_csv('training.data', sep=' ', header=False, index=False)
