@@ -21,7 +21,7 @@ parser.add_argument('-o', '--overwrite', action='store_true',
 args = parser.parse_args()
 
 campaign = sem.CampaignManager.new(ns_path, script, campaign_dir,
-            overwrite=args.overwrite, check_repo=False)
+            overwrite=args.overwrite, check_repo=False, max_parallel_processes=None)
 
 param_combinations = {
 	'traffic-trace-file': '/dev/null',
@@ -38,12 +38,11 @@ if(not args.export):
                     runs=nRuns, stop_on_errors=False)
 
 result_param = { 
-    'num-ues': [50, 75, 100],
-	'handover-algorithm': ['ns3::A2A4RsrqHandoverAlgorithm'],
-	'use-torch-lm': [False]
+	'use-torch-lm': [False],
+    'num-ues': [50, 75, 100]
 }
 print("exporting results")
-campaign.save_to_folders(result_param, results_dir + '/sem ia', nRuns)
+campaign.save_to_folders(result_param, results_dir, nRuns)
 
 param_combinations['handover-algorithm'] = 'ns3::NoOpHandoverAlgorithm'
 param_combinations['use-torch-lm'] = True
@@ -52,10 +51,9 @@ if(not args.export):
     campaign.run_missing_simulations(sem.list_param_combinations(param_combinations),
                     runs=nRuns, stop_on_errors=False)
 
-result_param['handover-algorithm'] = ['ns3::NoOpHandoverAlgorithm']
 result_param['use-torch-lm'] = [True]
 print("exporting results")
-campaign.save_to_folders(result_param, results_dir + '/com ia', nRuns)
+campaign.save_to_folders(result_param, results_dir, nRuns)
 
 print("saving campaign")
 if Path(persist_campaign_dir).exists():
