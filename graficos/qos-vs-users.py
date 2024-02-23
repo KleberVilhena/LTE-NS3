@@ -70,9 +70,9 @@ ScenarioVariant = namedtuple("ScenarioVariant", ["name", "path", "color"])
 RESULT_PATH = "../resultados"
 
 scenario_variants = [ScenarioVariant("Traditional O-RAN",
-				RESULT_PATH + "/sem ia", "#ffc0cb"),
+				RESULT_PATH + "/use-torch-lm=False", "#ffc0cb"),
 					 ScenarioVariant("O-RAN AI Based",
-				RESULT_PATH + "/com ia", "#f4442d")]
+				RESULT_PATH + "/use-torch-lm=True", "#f4442d")]
 
 fig_pdr = plt.figure()
 ax_pdr = fig_pdr.subplots()
@@ -158,10 +158,8 @@ for variant in scenario_variants:
 	complete_data.append(data_scenarios)
 	variantN += 1
 complete_data = pd.concat(complete_data)
-print(complete_data)
 del complete_data['std']
 complete_data = complete_data[complete_data.index != 'Time'].reset_index()
-print(complete_data)
 complete_data = complete_data.pivot(columns='index',
 					index=['num-ues', 'handover'],
 					values='mean')

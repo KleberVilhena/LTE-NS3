@@ -9,9 +9,11 @@ import csv
 import glob
 from collections import namedtuple
 
+NUM_UES = 75
+
 def readFile(filePath):
 	result = pd.read_csv(filePath, sep=',', header=0, usecols=['Time',
-						'Delay', 'Jitter', 'Throughtput', 'PDR'])
+						'Delay', 'Jitter', 'Throughput', 'PDR'])
 
 	result = result.groupby('Time', as_index=False).mean(numeric_only=True)
 	result['Delay'] = result['Delay'] * 1000
@@ -24,13 +26,9 @@ RESULT_PATH = "../resultados"
 ScenarioVariant = namedtuple("ScenarioVariant", ["name", "path", "color"])
 
 scenario_variants = [ScenarioVariant("Sem IA",
-				RESULT_PATH + "/..", "#ffc0cb"),
-					 ScenarioVariant("IA Beta",
-				RESULT_PATH + "/beta", "#ffc000"),
-					 ScenarioVariant("IA RC1",
-				RESULT_PATH + "/rc1", "#00c0c0"),
-					 ScenarioVariant("IA RC2",
-				RESULT_PATH + "/rc2", "#f4442d")]
+				RESULT_PATH + f"/use-torch-lm=False/num-ues={NUM_UES}", "#ffc0cb"),
+					 ScenarioVariant("Com IA",
+				RESULT_PATH + f"/use-torch-lm=True/num-ues={NUM_UES}", "#f4442d")]
 
 fig_pdr = plt.figure()
 ax_pdr = fig_pdr.subplots()
@@ -54,7 +52,7 @@ jitter_rectangles = []
 tp_rectangles = []
 
 for variant in scenario_variants:
-	data_scenarios = readFile(variant.path + "/qos-vs-time.txt")
+	data_scenarios = readFile(variant.path + "/run=0/qos-vs-time.txt")
 	print(data_scenarios)
 
 	mean = data_scenarios
@@ -91,7 +89,7 @@ for variant in scenario_variants:
 	ax_jitter.tick_params(axis="y", labelsize=15)
 	ax_jitter.yaxis.grid(color='gray', linestyle='dotted')
 
-	tp = mean['Throughtput']
+	tp = mean['Throughput']
 	rect = ax_tp.plot(time, tp, alpha=1.0, color=variant.color,
 			linewidth=2.0)
 	tp_rectangles.append(rect[0])
