@@ -184,7 +184,8 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=10)
 
 # Set the context for the model: if hardware acceleration is available, use it
 # Otherwise, use the CPU
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 # Instantiate the Neural Network
 model = MulticlassClassification (num_feature = NUM_FEATURES, num_class = NUM_CLASSES)
 model.to (device)
