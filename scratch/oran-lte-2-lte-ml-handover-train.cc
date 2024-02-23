@@ -401,7 +401,7 @@ main(int argc, char* argv[])
     for (uint16_t i = 0; i < ueNodes.GetN(); i++)
     {
         uint16_t port = basePort * (i + 1);
-		DataRate dataRate("3Mbps");
+		DataRate dataRate("2Mbps");
 		uint64_t bitRate = dataRate.GetBitRate();
 		uint32_t packetSize = 1400; // bytes
 		double interPacketInterval = static_cast<double>(packetSize * 8) / bitRate;
