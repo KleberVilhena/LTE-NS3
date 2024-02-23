@@ -67,7 +67,7 @@ parser.add_argument('-o', '--overwrite', action='store_true',
 args = parser.parse_args()
 
 campaign = sem.CampaignManager.new(ns_path, script, campaign_dir,
-            overwrite=args.overwrite, check_repo=False)
+            overwrite=args.overwrite, check_repo=False, max_parallel_processes=None)
 if args.overwrite and Path(results_dir).exists():
 	shutil.rmtree(results_dir)
 
@@ -81,7 +81,7 @@ param_combinations = {
 		'handover-trace-file': '/dev/null',
 		'scenario': list(range(3)),
 		'start-config': list(range(3)),
-		'run-id': list(range(100)),
+		'run-id': list(range(1000)),
 		'sim-time': 10,
 		'RngRun': 0
 		}
@@ -92,7 +92,7 @@ campaign.run_missing_simulations(sem.list_param_combinations(param_combinations)
 result_param = {
 		'scenario': list(range(3)),
 		'start-config': list(range(3)),
-		'run-id': list(range(100))
+		'run-id': list(range(1000))
 		}
 if not Path(results_dir).exists():
 	campaign.save_to_folders(result_param, results_dir, 1)
@@ -232,7 +232,7 @@ crit = train_data.loc[:, 'cell_load_1':'cell_load_3'].sum(axis='columns') != 0
 train_data = train_data[crit]
 
 print(train_data)
-train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
+#train_data.to_csv('training-no-norm.data', sep=' ', header=False, index=False)
 
 train_data.iloc[:,:3] = train_data.iloc[:,:3] / 1000
 print(train_data)
