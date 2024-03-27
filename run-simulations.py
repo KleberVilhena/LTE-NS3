@@ -26,7 +26,6 @@ campaign = sem.CampaignManager.new(ns_path, script, campaign_dir,
 param_combinations = {
 	'traffic-trace-file': '/dev/null',
 	'position-trace-file': '/dev/null',
-	'handover-trace-file': '/dev/null',
     'sim-time': 200,
     'num-ues': [50, 75, 100],
 	'handover-algorithm': 'ns3::A2A4RsrqHandoverAlgorithm',
